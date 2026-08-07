@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Summary - Factory Logic</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .summary-mini {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+
+        .summary-item {
+            flex: 1;
+            padding: 25px;
+            text-align: left;
+            min-width: 200px;
+        }
+
+        .summary-item .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .summary-item .value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            margin-top: 0;
+        }
+
+        .data-table th {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px 20px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            border: none;
+        }
+
+        .data-table td {
+            padding: 18px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-top: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .data-table tr td:first-child {
+            border-left: 1px solid var(--glass-border);
+            border-top-left-radius: var(--radius-sm);
+            border-bottom-left-radius: var(--radius-sm);
+        }
+
+        .data-table tr td:last-child {
+            border-right: 1px solid var(--glass-border);
+            border-top-right-radius: var(--radius-sm);
+            border-bottom-right-radius: var(--radius-sm);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="{{ url_for('static', filename='images/logo.ico') }}" alt="Logo"
+                style="height: 32px; width: auto;">
+            <span style="font-weight: 800; font-size: 1.2rem; color: var(--primary); letter-spacing: 1px;">TRANSFER
+                LOGIC</span>
+        </div>
+        <div style="display: flex; gap: 30px; align-items: center; margin-left: auto; margin-right: auto;">
+            <a href="{{ url_for('received') }}"
+                style="color: var(--text-muted); text-decoration: none; font-weight: 600;">Received</a>
+            <a href="{{ url_for('dispatch') }}"
+                style="color: var(--text-muted); text-decoration: none; font-weight: 600;">Dispatch</a>
+            <a href="{{ url_for('summary') }}"
+                style="color: var(--primary); text-decoration: none; font-weight: 600; border-bottom: 2px solid var(--primary);">Summary</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <a href="{{ url_for('settings') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; font-weight: 600;">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            <span style="color: var(--text-muted); font-size: 0.9rem;">
+                <i class="fas fa-user-circle"></i> {{ session['username'] }}
+            </span>
+            <a href="{{ url_for('logout') }}"
+                style="color: var(--danger); text-decoration: none; font-size: 0.9rem; font-weight: 600;">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Brand Header -->
+        <div style="margin-bottom: 40px;">
+            <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 10px;">Stock & Production Overview</h1>
+            <p style="color: var(--text-muted);">Real-time metrics for grade-wise inventory and production efficiency.
+            </p>
+        </div>
+
+        <!-- Dashboard Summary Section -->
+        <div class="summary-mini">
+            <div class="summary-item glass-card">
+                <div class="label">Total Bags Sent</div>
+                <div class="value">
+                    {% set sent_b = [0] %}
+                    {% for row in summary_data %}{% if sent_b.append(sent_b.pop() + row.total_bags_sent) %}{% endif %}{%
+                    endfor %}
+                    {{ sent_b[0] }} <span style="font-size: 1rem; opacity: 0.7;">Bags</span>
+                </div>
+            </div>
+            <div class="summary-item glass-card">
+                <div class="label">Net Stock (Bags)</div>
+                <div class="value" style="color: var(--secondary);">
+                    {% set rec_b = [0] %}
+                    {% for row in summary_data %}{% if rec_b.append(rec_b.pop() + row.total_bags_received) %}{% endif
+                    %}{% endfor %}
+                    {{ rec_b[0] }} <span style="font-size: 1rem; opacity: 0.7;">Bags</span>
+                </div>
+            </div>
+            <div class="summary-item glass-card">
+                <div class="label">Total Produced</div>
+                <div class="value" style="color: var(--accent);">
+                    {% set pkts = [0] %}
+                    {% for row in summary_data %}{% if pkts.append(pkts.pop() + row.total_packets_made) %}{% endif %}{%
+                    endfor %}
+                    {{ pkts[0] }} <span style="font-size: 1rem; opacity: 0.7;">Pkts</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Breakdown -->
+        <div class="glass-card" style="padding: 30px; margin-top: 35px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3 style="margin: 0;"><i class="fas fa-table" style="margin-right: 10px; color: var(--primary);"></i>
+                    Grade-wise Breakdown</h3>
+                <button id="sendReportBtn" class="glass-card"
+                    style="padding: 10px 20px; background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-paper-plane"></i> Send Daily Report Email
+                </button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">S.No</th>
+                        <th>Date</th>
+                        <th>Grade</th>
+                        <th>Sent (Bags)</th>
+                        <th>Received (Bags)</th>
+                        <th>Net Weight (KG)</th>
+                        <th style="color: var(--accent);">Packets Produced</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in summary_data %}
+                    <tr>
+                        <td style="font-weight: 700; color: var(--primary);">
+                            {% if row.sno %}
+                            {{ row.sno }}
+                            {% else %}
+                            {{ loop.index }}
+                            {% endif %}
+                        </td>
+                        <td>{{ row.date }}</td>
+                        <td style="font-weight: 800; color: var(--accent);">{{ row.grade }}</td>
+                        <td>{{ row.total_bags_sent }} Bags</td>
+                        <td style="font-weight: 700;">{{ row.total_bags_received }} Bags</td>
+                        <td style="color: var(--secondary); font-weight: 700;">{{ row.stock_weight|round(2) }} KG</td>
+                        <td style="font-weight: 800; color: var(--accent);">{{ row.total_packets_made }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 50px;">No summary
+                            data available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        document.getElementById('sendReportBtn').addEventListener('click', function () {
+            const btn = this;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            btn.disabled = true;
+
+            fetch('/send_daily_report')
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while sending the email.');
+                })
+                .finally(() => {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                });
+        });
+    </script>
+    <footer class="footer">
+        <div class="footer-content">
+            © 2026 Developed & Maintained by <span class="brand-name">MAPLE PRO</span>
+        </div>
+    </footer>
+</body>
+
+</html>

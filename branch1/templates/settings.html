@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Maple Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .settings-card {
+            max-width: 500px;
+            margin: 60px auto;
+            padding: 40px;
+        }
+        .form-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-header i {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+        .alert {
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .alert-success { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
+        .alert-error { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand-text" style="font-weight: 800; font-size: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-leaf"></i> MAPLE PRO
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <a href="{{ url_for('dashboard') }}" style="color: var(--text-main); text-decoration: none; font-weight: 600;">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+            <span style="color: var(--text-muted); font-size: 0.9rem;">
+                <i class="fas fa-user-circle"></i> {{ session['username'] }}
+            </span>
+            <a href="{{ url_for('logout') }}" style="color: var(--danger); text-decoration: none; font-size: 0.9rem; font-weight: 600;">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="glass-card settings-card">
+            <div class="form-header">
+                <i class="fas fa-user-shield"></i>
+                <h2 style="color: var(--text-main); font-weight: 800; margin: 0;">Account Settings</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Change your username and password</p>
+            </div>
+
+            <div id="alert-box" class="alert"></div>
+
+            <form id="change-form">
+                <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--secondary); margin-top: 0; margin-bottom: 15px; font-size: 0.8rem; text-transform: uppercase;">Current Credentials</h4>
+                    <div class="form-group">
+                        <label>Current Username</label>
+                        <input type="text" id="curr_username" required placeholder="Your current username">
+                    </div>
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" id="curr_password" required placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div style="background: rgba(99, 102, 241, 0.05); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--primary); margin-top: 0; margin-bottom: 15px; font-size: 0.8rem; text-transform: uppercase;">New Credentials</h4>
+                    <div class="form-group">
+                        <label>New Username</label>
+                        <input type="text" id="new_username" required placeholder="Enter new username">
+                    </div>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="password" id="new_password" required placeholder="Enter new password">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm New Password</label>
+                        <input type="password" id="conf_password" required placeholder="Confirm new password">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="submit-btn" style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    UPDATE ACCOUNT <i class="fas fa-save"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <footer class="footer">
+        © 2026 Developed & Maintained by <span class="brand-name">MAPLE PRO</span>
+    </footer>
+
+    <script>
+        document.getElementById('change-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const curr_u = document.getElementById('curr_username').value;
+            const curr_p = document.getElementById('curr_password').value;
+            const new_u = document.getElementById('new_username').value;
+            const new_p = document.getElementById('new_password').value;
+            const conf_p = document.getElementById('conf_password').value;
+            const alertBox = document.getElementById('alert-box');
+            const submitBtn = document.getElementById('submit-btn');
+
+            if (new_p !== conf_p) {
+                showAlert('New passwords do not match!', 'error');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                const response = await fetch('/api/change_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        current_username: curr_u,
+                        current_password: curr_p,
+                        new_username: new_u,
+                        new_password: new_p
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('Account updated successfully! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 2000);
+                } else {
+                    showAlert(data.message || 'Error updating account', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'UPDATE ACCOUNT <i class="fas fa-save"></i>';
+                }
+            } catch (err) {
+                showAlert('Network error. Please try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'UPDATE ACCOUNT <i class="fas fa-save"></i>';
+            }
+        });
+
+        function showAlert(msg, type) {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.innerText = msg;
+            alertBox.className = 'alert ' + (type === 'success' ? 'alert-success' : 'alert-error');
+            alertBox.style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+    </script>
+</body>
+</html>

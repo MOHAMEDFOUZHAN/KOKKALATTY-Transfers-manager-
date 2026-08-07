@@ -1,0 +1,7 @@
+pyinstaller --noconsole --onefile --name "KOKKALATTY Transfers" `
+--add-data "static;static" `
+--add-data "branch1;branch1" `
+--add-data "branch2;branch2" `
+--add-data "login.html;." `
+--icon "static/images/logo.ico" `
+app.py

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maple Pro - Secure Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body class="login-wrapper">
+    <div class="login-card glass-card">
+        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 20px;">
+            <img src="{{ url_for('static', filename='images/logo.ico') }}" alt="Maple Pro"
+                style="width: 80px; height: auto;">
+        </div>
+
+        <h1 style="margin-bottom: 5px;">MAPLE PRO</h1>
+        <p style="color: var(--text-muted); margin-bottom: 30px; font-size: 0.9rem; letter-spacing: 1px;">SALES
+            MANAGEMENT SYSTEM</p>
+
+        <form action="{{ url_for('login') }}" method="POST">
+            <div class="form-group">
+                <label>Username</label>
+                <div style="position: relative;">
+                    <i class="fas fa-user-shield"
+                        style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    <input type="text" name="username" placeholder="Enter username" required
+                        style="padding-left: 45px;">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <div style="position: relative;">
+                    <i class="fas fa-key"
+                        style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    <input type="password" name="password" placeholder="••••••••" required style="padding-left: 45px;">
+                </div>
+            </div>
+
+            {% if request.args.get('error') %}
+            <p style="color: var(--danger); font-size: 0.85rem; margin-bottom: 15px;">Invalid credentials, please try
+                again.</p>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary"
+                style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+                SIGN IN <i class="fas fa-arrow-right"></i>
+            </button>
+        </form>
+
+    <footer class="footer">
+        © 2026 Developed & Maintained by <span class="brand-name">MAPLE PRO</span>
+    </footer>
+</body>
+
+</html>

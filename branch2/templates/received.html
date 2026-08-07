@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Material Arrivals - Branch Audit</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .arrival-card {
+            border-left: 4px solid var(--accent);
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .status-received {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .qty-input {
+            width: 80px !important;
+            padding: 5px !important;
+            text-align: center;
+            border-bottom: 2px solid var(--primary) !important;
+            border-radius: 4px !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .packet-input {
+            border-bottom: 2px solid var(--secondary) !important;
+        }
+
+        .manual-entry-box {
+            display: none;
+            margin-bottom: 40px;
+            border: 1px solid var(--accent);
+            padding: 25px;
+        }
+
+        .summary-mini {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+
+        .summary-item {
+            flex: 1;
+            padding: 25px;
+            text-align: left;
+            min-width: 200px;
+        }
+
+        .summary-item .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .summary-item .value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .action-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            margin-bottom: 30px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            margin-top: 0;
+        }
+
+        .data-table th {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px 20px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            border: none;
+        }
+
+        .data-table td {
+            padding: 18px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-top: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .data-table tr td:first-child {
+            border-left: 1px solid var(--glass-border);
+            border-top-left-radius: var(--radius-sm);
+            border-bottom-left-radius: var(--radius-sm);
+        }
+
+        .data-table tr td:last-child {
+            border-right: 1px solid var(--glass-border);
+            border-top-right-radius: var(--radius-sm);
+            border-bottom-right-radius: var(--radius-sm);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div
+            style="font-weight: 800; font-size: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 12px;">
+            <img src="{{ url_for('static', filename='images/logo.ico') }}" alt="Logo"
+                style="height: 32px; width: auto;">
+            RECEIVED LOGIC
+        </div>
+        <div style="display: flex; gap: 30px; align-items: center; margin-left: auto; margin-right: auto;">
+            <a href="{{ url_for('received') }}"
+                style="color: var(--primary); text-decoration: none; font-weight: 600; border-bottom: 2px solid var(--primary);">Received</a>
+            <a href="{{ url_for('dispatch') }}"
+                style="color: var(--text-muted); text-decoration: none; font-weight: 600;">Dispatch</a>
+            <a href="{{ url_for('summary') }}"
+                style="color: var(--text-muted); text-decoration: none; font-weight: 600;">Summary</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <a href="{{ url_for('settings') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; font-weight: 600;">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            <span style="color: var(--text-muted); font-size: 0.9rem;">
+                <i class="fas fa-warehouse"></i> {{ session['username'] }}
+            </span>
+            <a href="{{ url_for('logout') }}"
+                style="color: var(--danger); text-decoration: none; font-size: 0.9rem; font-weight: 600;">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <div class="action-header">
+            <div>
+                <h2 style="margin: 0; color: var(--text-main); font-weight: 800;">
+                    <i class="fas fa-history" style="margin-right: 10px; opacity: 0.7;"></i> Recent Transactions
+                </h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Verify incoming transfers or issue manual
+                    production records.</p>
+            </div>
+            <button class="btn btn-primary"
+                style="width: auto; padding: 14px 30px; display: flex; align-items: center; gap: 12px;"
+                onclick="toggleManualForm()">
+                <i class="fas fa-plus"></i> <span>Record Arrival & Processing</span>
+            </button>
+        </div>
+
+        <!-- MANUAL ENTRY FORM (Matching Image 1 logic) -->
+        <div id="manual-form" class="glass-card manual-entry-box" style="border-color: var(--primary);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3 style="margin: 0; color: var(--primary);"><i class="fas fa-file-signature"></i> Manual Material
+                    Receipt Entry</h3>
+                <button onclick="toggleManualForm()"
+                    style="background: transparent; border: none; color: var(--text-muted); cursor: pointer;"><i
+                        class="fas fa-times"></i></button>
+            </div>
+
+            <div
+                style="background: rgba(255,255,255,0.03); padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1px dashed var(--glass-border);">
+                <!-- Header Info -->
+                <div style="display: grid; grid-template-columns: 1.5fr 3fr; gap: 20px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label>S.No (Manual/Auto)</label>
+                        <input type="text" id="m_sno" placeholder="Leave blank for Auto">
+                    </div>
+                </div>
+
+                <!-- Received - Material Details -->
+                <p
+                    style="font-size: 0.75rem; color: var(--accent); font-weight: 800; text-transform: uppercase; margin-bottom: 15px;">
+                    <i class="fas fa-truck-loading"></i> Section 1: Received - MATERIAL DETAILS
+                </p>
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1.2fr; gap: 15px; align-items: flex-end;">
+                    <div class="form-group">
+                        <label>Tea Grade</label>
+                        <input type="text" id="m_grade" placeholder="e.g. BOPF">
+                    </div>
+                    <div class="form-group">
+                        <label>HSN</label>
+                        <input type="text" id="m_hsn" placeholder="HSN">
+                    </div>
+                    <div class="form-group">
+                        <label>No. of Bags</label>
+                        <input type="number" id="m_bags" placeholder="0" oninput="calculateManualQty()">
+                    </div>
+                    <div class="form-group">
+                        <label>Per Unit (KG)</label>
+                        <input type="number" id="m_nett" value="35.00" step="0.01" oninput="calculateManualQty()">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Qty (KG)</label>
+                        <input type="number" id="m_total_qty" readonly
+                            style="background: rgba(0,0,0,0.3); color: var(--secondary); font-weight: 800;">
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 25px;">
+                    <button class="btn btn-outline"
+                        style="width: auto; height: 50px; border-color: var(--primary); padding: 0 40px;"
+                        onclick="addToManualCart()">
+                        <i class="fas fa-plus"></i> Add Receipt Row
+                    </button>
+                </div>
+            </div>
+
+            <div id="manual-cart-container" style="display: none; margin-top: 30px;">
+                <h4 style="margin-bottom: 15px; color: var(--accent);"><i class="fas fa-list-check"></i> Staged Items
+                </h4>
+                <table style="background: rgba(255,255,255,0.02);">
+                    <thead>
+                        <tr>
+                            <th>Grade</th>
+                            <th>HSN</th>
+                            <th>No. of Bags</th>
+                            <th>Per Unit (KG)</th>
+                            <th>Total Weight (KG)</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manual-cart-body"></tbody>
+                </table>
+                <div style="margin-top:30px; text-align: right;">
+                    <button class="btn btn-primary" id="submit-arrival-btn"
+                        style="width: auto; padding: 14px 60px; font-size: 1.1rem; box-shadow: 0 0 25px var(--primary-glow);"
+                        onclick="submitManualArrival()">
+                        <i class="fas fa-save"></i> Save All Records & Update Summary
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card" style="padding: 30px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">S.No</th>
+                        <th>Date</th>
+                        <th>Grade / Item Summary</th>
+                        <th style="text-align: center;">Total Qty (KG)</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in invoices %}
+                    <tr>
+                        <td>
+                            <strong style="color: var(--primary);">
+                                {% if inv.manual_sno %}
+                                {{ inv.manual_sno }}
+                                {% else %}
+                                #{{ inv.id }}
+                                {% endif %}
+                            </strong>
+                        </td>
+                        <td>{{ inv.date }}</td>
+                        <td style="font-weight: 800; color: var(--accent); padding-right: 20px;">
+                            {{ inv.items_summary }}
+                        </td>
+                        <td style="font-weight: 800; color: var(--secondary); text-align: center;">
+                            {{ inv.total_weight|round(2) }} KG
+                        </td>
+                        <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                            {% if inv.status != 'RECEIVED' %}
+                            <button class="btn btn-primary"
+                                style="width: auto; padding: 10px 20px; font-size: 0.85rem; box-shadow: 0 0 15px var(--primary-glow);"
+                                onclick="showVerifyModal('{{ inv.id }}', '{{ inv.invoice_no }}', '{{ inv.status }}')">
+                                <i class="fas fa-check-double"></i> Verify Arrival
+                            </button>
+                            {% else %}
+                            <button class="btn btn-outline" style="width: auto; padding: 8px 15px; font-size: 0.85rem;"
+                                onclick="showVerifyModal('{{ inv.id }}', '{{ inv.invoice_no }}', '{{ inv.status }}')">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                            {% endif %}
+                            <button class="btn btn-outline"
+                                style="width: auto; padding: 6px 15px; font-size: 0.85rem; border-color: var(--secondary); color: var(--secondary);"
+                                onclick="editInvoice('{{ inv.id }}', '{{ inv.invoice_no }}', '{{ inv.status }}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-primary"
+                                style="width: auto; padding: 6px 15px; font-size: 0.85rem; background: var(--danger); border-color: var(--danger);"
+                                onclick="deleteInvoice('{{ inv.id }}')">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- VERIFICATION MODAL -->
+    <div id="verify-modal" class="modal">
+        <div class="modal-content glass-card" style="max-width: 900px; width: 95%;">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title" style="color: var(--primary);">Verify Arrival & Packets</h2>
+            <div id="modal-meta" style="margin-bottom: 30px; color: var(--text-muted);"></div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Grade</th>
+                        <th>Sent (Bags)</th>
+                        <th>Sent (Packets)</th>
+                        <th style="color: var(--success);">Received Bags</th>
+                        <th style="color: var(--secondary);">Total Packets Made</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody id="verify-body"></tbody>
+            </table>
+
+            <div style="margin-top: 40px; display: flex; justify-content: flex-end; gap: 20px;">
+                <button class="btn btn-outline" style="width: auto; padding: 12px 30px;"
+                    onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" id="save-btn" style="width: auto; padding: 12px 40px;"
+                    onclick="saveVerification()">
+                    <i class="fas fa-save"></i> Confirm Receipt
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentInvoiceId = null;
+        let manualCart = [];
+
+        function calculateManualQty() {
+            const bags = parseInt(document.getElementById('m_bags').value) || 0;
+            const nett = parseFloat(document.getElementById('m_nett').value) || 0;
+            document.getElementById('m_total_qty').value = (bags * nett).toFixed(2);
+        }
+
+        // Add listeners for real-time calc
+        document.getElementById('m_bags').addEventListener('input', calculateManualQty);
+        document.getElementById('m_nett').addEventListener('input', calculateManualQty);
+
+        function toggleManualForm() {
+            const form = document.getElementById('manual-form');
+            form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+            if (form.style.display === 'none') {
+                editingInvoiceId = null;
+                document.getElementById('m_sno').value = '';
+                document.getElementById('manual-form').querySelector('h3').innerHTML = `<i class="fas fa-file-signature"></i> Manual Material Receipt Entry`;
+                document.getElementById('submit-arrival-btn').innerHTML = `<i class="fas fa-save"></i> Save All Records & Update Summary`;
+            }
+            if (form.style.display === 'block') form.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function addToManualCart() {
+            const item = {
+                batch_no: 'MANUAL',
+                grade: document.getElementById('m_grade').value,
+                hsn: document.getElementById('m_hsn').value,
+                received_bags: parseInt(document.getElementById('m_bags').value) || 0,
+                nett_wt: parseFloat(document.getElementById('m_nett').value) || 0,
+                total_qty: (parseInt(document.getElementById('m_bags').value) || 0) * (parseFloat(document.getElementById('m_nett').value) || 0),
+                received_packets: 0 // No packets in receipt entry
+            };
+
+            if (!item.grade || item.received_bags <= 0) {
+                alert("Please enter grade and bags count");
+                return;
+            }
+
+            manualCart.push(item);
+            updateManualUI();
+
+            // Reset inputs for next entry
+            document.getElementById('m_grade').value = '';
+            document.getElementById('m_bags').value = '';
+            calculateManualQty();
+        }
+
+        function updateManualUI() {
+            const tbody = document.getElementById('manual-cart-body');
+            tbody.innerHTML = '';
+            manualCart.forEach((item, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight:800; color:var(--primary);">${item.grade}</td>
+                        <td style="color: var(--text-muted);">${item.hsn}</td>
+                        <td style="font-weight:700;">${item.received_bags} Bags</td>
+                        <td style="font-weight:800; color:var(--secondary);">${item.total_qty.toFixed(2)} KG</td>
+                        <td style="text-align:right;">
+                            <button style="background:transparent; border:none; color:var(--accent); cursor:pointer; font-size:1.1rem; margin-right:10px;" onclick="editManualItem(${index})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button style="background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:1.1rem;" onclick="removeFromManualCart(${index})">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('manual-cart-container').style.display = manualCart.length > 0 ? 'block' : 'none';
+        }
+
+        function editManualItem(index) {
+            const item = manualCart[index];
+            document.getElementById('m_grade').value = item.grade;
+            document.getElementById('m_bags').value = item.received_bags;
+            document.getElementById('m_nett').value = item.nett_wt;
+            document.getElementById('m_hsn').value = item.hsn || '0902';
+            calculateManualQty();
+
+            manualCart.splice(index, 1);
+            updateManualUI();
+        }
+
+        function removeFromManualCart(index) {
+            manualCart.splice(index, 1);
+            updateManualUI();
+        }
+
+        function submitManualArrival() {
+            if (manualCart.length === 0) return alert("Add at least one item first");
+            const sno = document.getElementById('m_sno').value;
+
+            const url = editingInvoiceId ? `/api/invoice/update_manual/${editingInvoiceId}` : '/api/arrival/manual/add';
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: manualCart, prefix: 'ARR', manual_sno: sno })
+            })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) location.reload();
+                    else alert('Error: ' + res.message);
+                });
+        }
+
+        function showVerifyModal(id, no, status, forceEdit = false) {
+            currentInvoiceId = id;
+            document.getElementById('modal-title').innerText = `Receipt Verification: ${no}`;
+
+            fetch(`/api/invoice/details/${id}`)
+                .then(res => res.json())
+                .then(items => {
+                    const tbody = document.getElementById('verify-body');
+                    tbody.innerHTML = '';
+
+                    // Store the manual_sno if we're calling showVerifyModal from editInvoice
+                    if (forceEdit) {
+                        // Find the invoice in local data or just trust what we fetched
+                        fetch(`/api/invoice/header/${id}`).then(r => r.json()).then(h => {
+                            if (h.manual_sno) {
+                                document.getElementById('modal-title').innerText += ` [S.No: ${h.manual_sno}]`;
+                            }
+                        });
+                    }
+
+                    items.forEach(i => {
+                        const readOnly = (!forceEdit && status === 'RECEIVED') ? 'readonly' : '';
+                        tbody.innerHTML += `
+                            <tr data-id="${i.id}">
+                                <td style="font-weight:700; color:var(--primary);">${i.grade}</td>
+                                <td>${i.num_packages}</td>
+                                <td style="color: var(--accent); font-weight:700;">${i.packets_sent || 0}</td>
+                                <td>
+                                    <input type="number" class="qty-input" value="${i.received_packages || i.num_packages}" ${readOnly}>
+                                </td>
+                                <td>
+                                    <input type="number" class="qty-input packet-input" value="${i.received_packets || 0}" placeholder="Actual Pkts" ${readOnly}>
+                                </td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;">${i.description || '---'}</td>
+                            </tr>
+                        `;
+                    });
+
+                    document.getElementById('save-btn').style.display = (!forceEdit && status === 'RECEIVED') ? 'none' : 'block';
+                    document.getElementById('verify-modal').style.display = 'flex';
+                });
+        }
+
+        function closeModal() {
+            document.getElementById('verify-modal').style.display = 'none';
+        }
+
+        function saveVerification() {
+            const rows = document.querySelectorAll('#verify-body tr');
+            const items = [];
+            rows.forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                items.push({
+                    id: row.dataset.id,
+                    received_bags: parseInt(inputs[0].value) || 0,
+                    received_packets: parseInt(inputs[1].value) || 0
+                });
+            });
+
+            fetch('/api/invoice/update_receipt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ invoice_id: currentInvoiceId, items: items })
+            })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) location.reload();
+                    else alert('Error: ' + res.message);
+                });
+        }
+
+        function editInvoice(id, invNo, status) {
+            if (invNo.startsWith('TRF-')) {
+                showVerifyModal(id, invNo, status, true);
+                return;
+            }
+
+            fetch(`/api/invoice/details/${id}`)
+                .then(res => res.json())
+                .then(items => {
+                    manualCart = items.map(i => ({
+                        grade: i.grade,
+                        hsn: i.hsn_code,
+                        received_bags: i.num_packages,
+                        received_packets: i.received_packets,
+                        nett_wt: i.nett_wt,
+                        total_qty: i.total_qty,
+                        description: i.description
+                    }));
+
+                    editingInvoiceId = id;
+
+                    // Fetch header for manual_sno
+                    fetch(`/api/invoice/header/${id}`).then(r => r.json()).then(h => {
+                        document.getElementById('m_sno').value = h.manual_sno || '';
+                    });
+
+                    updateManualUI(); // Changed from updateManualCartUI to updateManualUI
+
+                    document.getElementById('manual-form').style.display = 'block';
+                    document.getElementById('manual-form').scrollIntoView({ behavior: 'smooth' });
+
+                    document.getElementById('manual-form').querySelector('h3').innerHTML = `<i class="fas fa-edit"></i> Editing Receipt #${invNo}`;
+                    document.getElementById('submit-arrival-btn').innerHTML = `<i class="fas fa-save"></i> Update Records #${invNo}`;
+                });
+        }
+
+        function deleteInvoice(id) {
+            if (!confirm("Are you sure you want to delete this record?")) return;
+            fetch(`/api/invoice/delete/${id}`, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) location.reload();
+                    else alert('Error: ' + res.message);
+                });
+        }
+    </script>
+    <footer class="footer">
+        <div class="footer-content">
+            © 2026 Developed & Maintained by <span class="brand-name">MAPLE PRO</span>
+        </div>
+    </footer>
+</body>
+
+</html>

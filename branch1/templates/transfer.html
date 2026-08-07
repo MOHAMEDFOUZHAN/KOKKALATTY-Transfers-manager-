@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch 1 - Tea Transfer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @media print {
+            body * { visibility: hidden !important; }
+            #print-section, #print-section * { visibility: visible !important; }
+            #print-section {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print { display: none !important; }
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+        }
+
+        #print-section {
+            display: none;
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            line-height: 1.2;
+            background: white;
+            color: black;
+        }
+
+        #print-section table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+        }
+
+        #print-section th, #print-section td {
+            border: 1px solid #000;
+            padding: 3px;
+            text-align: center;
+            font-size: 9.5pt;
+            color: #000;
+        }
+
+        .challan-header h2 { font-size: 16pt; margin: 0; font-weight: 800; color: #000; }
+        .challan-header p { margin: 1px 0; font-size: 9pt; color: #000; }
+        .underline { text-decoration: underline; }
+        .bold { font-weight: bold; }
+
+        .nav-links-custom {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-link-custom {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+
+        .nav-link-custom:hover {
+            color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .nav-link-custom.active {
+            color: var(--text-main);
+            background: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .summary-mini {
+            display: flex;
+            justify-content: flex-end;
+            gap: 40px;
+            margin-top: 20px;
+        }
+
+        .summary-mini-item {
+            text-align: right;
+        }
+
+        .summary-mini-item .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .summary-mini-item .value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .calc-input {
+            background: rgba(6, 182, 212, 0.1) !important;
+            color: var(--accent) !important;
+            font-weight: 700 !important;
+        }
+
+        .entry-section {
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand-text" style="font-weight: 800; font-size: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-leaf"></i> HOLMWOOD BRANCH 1
+        </div>
+        <div class="nav-links-custom">
+            <a href="{{ url_for('branch1_transfer') }}" class="nav-link-custom active">Transfer</a>
+            <a href="{{ url_for('branch1_production') }}" class="nav-link-custom">Production</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <a href="{{ url_for('settings') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem; font-weight: 600;">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            <span style="color: var(--text-muted); font-size: 0.9rem;">
+                <i class="fas fa-user-circle"></i> {{ session['username'] }}
+            </span>
+            <a href="{{ url_for('logout') }}" style="color: var(--danger); text-decoration: none; font-size: 0.9rem; font-weight: 600;">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 30px;">
+        <h1 style="margin-bottom: 30px; font-weight: 800; color: var(--text-main);">
+            <i class="fas fa-truck-loading" style="color: var(--secondary); margin-right: 15px;"></i>Transfer Management
+        </h1>
+
+        <!-- History Header with Add Button -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <h3 style="margin-bottom: 0; color: var(--accent); display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-history"></i> Recent Transfers
+            </h3>
+            <div style="display: flex; gap: 12px;">
+                <button id="sendReportBtn" class="btn btn-outline" style="width: auto; padding: 10px 25px; border-color: var(--secondary); color: var(--secondary); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-paper-plane"></i> Send Daily Report
+                </button>
+                <button class="btn btn-primary" onclick="toggleTransferModal(true)" style="width: auto; padding: 10px 25px; background: var(--primary); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-plus"></i> Add New Transfer
+                </button>
+            </div>
+        </div>
+
+        <!-- Saved History Table -->
+        <div class="glass-card" style="padding: 30px; margin-bottom: 40px;">
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date / Time</th>
+                            <th>Ref No.</th>
+                            <th>To</th>
+                            <th>Grades</th>
+                            <th>Items</th>
+                            <th>Total Pkgs</th>
+                            <th>Total Qty</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in history %}
+                        <tr data-groupid="{{ row.group_id }}">
+                            <td>
+                                <div style="font-weight: 700; color: var(--text-main);">{{ row.entry_date }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ row.entry_time }}</div>
+                            </td>
+                            <td style="font-weight: 800; color: var(--primary);">
+                                {{ row.ref_no }}
+                                {% if row.vehicle_no %}
+                                <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 400; margin-top: 2px;">
+                                    <i class="fas fa-truck" style="font-size: 0.65rem;"></i> {{ row.vehicle_no }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td style="font-weight: 700; color: var(--accent);">{{ row.dest_name or 'SELF' }}</td>
+                            <td style="color: var(--text-main); font-weight: 600; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {{ row.grades }}
+                            </td>
+                            <td><span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-muted);">{{ row.item_count }} rows</span></td>
+                            <td style="font-weight: 700;">{{ row.total_packages }}</td>
+                            <td style="color: var(--secondary); font-weight: 800;">{{ row.grand_total_qty }} KG</td>
+                            <td style="text-align: right;">
+                                <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+                                    <button class="btn btn-outline" style="min-width: 80px; padding: 6px 12px; font-size: 0.8rem; border-color: var(--primary); color: var(--primary); font-weight: 700;" onclick="viewEntry('{{ row.group_id }}')">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-outline" style="min-width: 80px; padding: 6px 12px; font-size: 0.8rem; border-color: var(--accent); color: var(--accent); font-weight: 700;" onclick="editEntry('{{ row.group_id }}')">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="btn btn-outline" style="min-width: 80px; padding: 6px 12px; font-size: 0.8rem; border-color: var(--secondary); color: var(--secondary); font-weight: 700;" onclick="printInvoice('{{ row.group_id }}')">
+                                        <i class="fas fa-print"></i> Print
+                                    </button>
+                                    <button class="btn btn-outline" style="min-width: 40px; padding: 6px 10px; font-size: 0.8rem; border-color: var(--danger); color: var(--danger);" onclick="deleteGroup('{{ row.group_id }}')">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not history %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">No transfer records found.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transfer Entry Modal -->
+    <div id="transfer-modal" class="modal">
+        <div class="glass-card modal-content" style="max-width: 1000px; padding: 40px;">
+            <span class="close-btn" onclick="toggleTransferModal(false)">&times;</span>
+            <h2 id="transfer-modal-title" style="margin-bottom: 25px; color: var(--text-main); font-weight: 800; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-plus-circle" style="color: var(--secondary)"></i> New Transfer Entry
+            </h2>
+
+            <!-- Recipient Section -->
+            <div class="compact-form" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <h4 style="margin-top: 0; color: var(--primary); display: flex; align-items: center; gap: 8px; margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">
+                    <i class="fas fa-truck"></i> Transport Information
+                </h4>
+                <div class="grid-4" style="grid-template-columns: 1fr 1.5fr 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Consignee</label>
+                        <input type="text" id="dest_name" list="places-list" placeholder="Place..." onchange="handlePlaceChange()">
+                        <datalist id="places-list"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Full Address</label>
+                        <input type="text" id="dest_address" placeholder="Address">
+                    </div>
+                    <div class="form-group">
+                        <label>GSTIN Number</label>
+                        <input type="text" id="dest_gstin" placeholder="GSTIN">
+                    </div>
+                    <div class="form-group">
+                        <label>Vehicle No</label>
+                        <input type="text" id="vehicle_no" list="vehicles-list" placeholder="Vehicle No">
+                        <datalist id="vehicles-list"></datalist>
+                    </div>
+                </div>
+
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 0; margin-bottom: 0;">
+                    <div class="form-group">
+                        <label>Driver Name</label>
+                        <input type="text" id="driver_name" list="drivers-list" placeholder="Driver Name" onchange="handleDriverChange()">
+                        <datalist id="drivers-list"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Driver Contact No</label>
+                        <input type="text" id="driver_no" placeholder="Driver No">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Item Input Grid -->
+            <div class="compact-form" style="background: rgba(6, 182, 212, 0.03); border: 1px solid rgba(6, 182, 212, 0.1); border-radius: 12px; padding: 20px; margin-bottom: 25px;">
+                <h4 style="margin-top: 0; color: var(--accent); display: flex; align-items: center; gap: 8px; margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">
+                    <i class="fas fa-plus-circle"></i> Add Item Details
+                </h4>
+                
+                <div class="grid-6" style="grid-template-columns: 0.6fr 1.2fr 0.9fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div class="form-group">
+                        <label>Sl.No</label>
+                        <input type="number" id="sl_no" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Grade</label>
+                        <input type="text" id="grade" list="grades-list" placeholder="e.g. BOP, Dust" oninput="autoHSN()">
+                        <datalist id="grades-list"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Packages</label>
+                        <input type="number" id="no_of_packages" placeholder="0" oninput="calculateTotal(); calculateSerials();">
+                    </div>
+                    <div class="form-group">
+                        <label>Invoice No</label>
+                        <input type="text" id="batch_invoice_no" placeholder="Invoice Number">
+                    </div>
+                </div>
+
+                <div class="grid-6" style="grid-template-columns: 1fr 0.9fr 0.9fr; gap: 12px; margin-bottom: 12px;">
+                    <div class="form-group">
+                        <label>HSN</label>
+                        <input type="text" id="hsn_code" placeholder="HSN Code">
+                    </div>
+                    <div class="form-group">
+                        <label>Serial From</label>
+                        <input type="number" id="serial_from" placeholder="0" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Serial To</label>
+                        <input type="number" id="serial_to" placeholder="0" readonly>
+                    </div>
+                </div>
+
+                <div class="grid-6" style="grid-template-columns: 1fr 0.8fr 1fr 1.2fr 1fr; gap: 12px; margin-bottom: 0;">
+                    <div class="form-group">
+                        <label>Unit Wt (Kgs)</label>
+                        <input type="number" id="unit_weight" step="0.001" value="35" oninput="calculateTotal()">
+                    </div>
+                    <div class="form-group">
+                        <label>UOM (BAG)</label>
+                        <select id="bag_weight" onchange="calculateTotal()" style="background: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-main); border-radius: 8px;">
+                            <option value="0.260">0.260gr (Default)</option>
+                            <option value="0.270">0.270gr</option>
+                            <option value="0">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Gross Wt (Tea)</label>
+                        <input type="number" id="gross_weight" class="calc-input" readonly placeholder="Total Tea" style="background: rgba(16, 185, 129, 0.1) !important;">
+                    </div>
+                    <div class="form-group">
+                        <label>Net Wt (Total+Bag)</label>
+                        <input type="number" id="net_weight_kgs" class="calc-input" readonly placeholder="Total + Bag" style="background: rgba(99, 102, 241, 0.1) !important;">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="addRow()" style="height: 38px; background: var(--secondary); box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);">
+                            <i class="fas fa-plus"></i> Add row
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staged Table inside Modal -->
+            <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 30px;">
+                <table style="margin-top: 0;">
+                    <thead style="position: sticky; top: 0; background: var(--bg-dark); z-index: 10;">
+                        <tr>
+                            <th style="width: 80px;">Sl.No</th>
+                            <th>Grade</th>
+                            <th>Invoice No</th>
+                            <th>HSN</th>
+                            <th>Pkgs</th>
+                            <th>Unit Wt</th>
+                            <th>Gross Wt (Tea)</th>
+                            <th>Net Wt (+Bag)</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="summary-mini" style="margin-top: 0;">
+                    <div class="summary-mini-item">
+                        <span class="label">Total Packages</span>
+                        <span class="value" id="total_packages">0</span>
+                    </div>
+                    <div class="summary-mini-item" style="margin-left: 30px;">
+                        <span class="label">Total Quantity (Kg)</span>
+                        <span class="value" id="grand_total_qty_kg">0.00</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width: auto; padding: 14px 40px; background: var(--secondary); box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);" onclick="submitTransfer()">
+                    <i class="fas fa-save"></i> Save All Items
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal">
+        <div class="glass-card modal-content" style="max-width: 450px; text-align: center;">
+            <div style="font-size: 4rem; color: var(--success); margin-bottom: 20px;"><i class="fas fa-check-circle"></i></div>
+            <h2 style="color: var(--text-main);">Transfer Saved!</h2>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">The transfer records have been successfully saved.</p>
+            <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
+                <div style="display: flex; gap: 15px;">
+                    <button class="btn btn-primary" onclick="location.reload()" style="background: var(--secondary); flex: 1;">Done</button>
+                    <button class="btn btn-outline" onclick="printInvoice('last')" style="border-color: var(--accent); color: var(--accent); flex: 1;">
+                        <i class="fas fa-print"></i> Print Invoice
+                    </button>
+                </div>
+                <button class="btn btn-outline" onclick="sendDailyReport(this)" style="border-color: var(--secondary); color: var(--secondary); width: 100%;">
+                    <i class="fas fa-paper-plane"></i> Send Report to Owner
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entry Details View Modal -->
+    <div id="details-modal" class="modal">
+        <div class="glass-card modal-content" style="max-width: 1100px; padding: 40px;">
+            <span class="close-btn" onclick="document.getElementById('details-modal').style.display='none'">&times;</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h2 style="color: var(--text-main); font-weight: 800; display: flex; align-items: center; gap: 10px; margin: 0;">
+                    <i class="fas fa-file-invoice" style="color: var(--primary)"></i> Transfer Details
+                </h2>
+                <div id="details-header-info" style="text-align: right; color: var(--text-muted); font-size: 0.9rem;">
+                    <!-- Date/Ref injected here -->
+                </div>
+            </div>
+
+            <div style="overflow-x: auto; margin-bottom: 30px;">
+                <table id="details-items-table">
+                    <thead>
+                        <tr>
+                            <th>Sl.No</th>
+                            <th>Grade</th>
+                            <th>Invoice No</th>
+                            <th>HSN</th>
+                            <th>Pkgs</th>
+                            <th>Unit Wt</th>
+                            <th>Gross Wt (Tea)</th>
+                            <th>Net Wt (+Bag)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="details-table-body">
+                        <!-- rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 15px;">
+                <button class="btn btn-outline" style="width: auto; padding: 12px 30px;" onclick="document.getElementById('details-modal').style.display='none'">Close</button>
+                <button id="details-print-btn" class="btn btn-primary" style="width: auto; padding: 12px 35px; background: var(--secondary);">
+                    <i class="fas fa-print"></i> Print This Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        © 2026 Developed & Maintained by <span class="brand-name">MAPLE PRO</span>
+    </footer>
+
+    <!-- A4 Print Section (Hidden by default) -->
+    <div id="print-section">
+        <div class="challan-header" style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px;">
+            <h2 style="text-transform: uppercase;">Kokkalatty Tea Industry</h2>
+            <p>KETTI PALADA NILGIRIS</p>
+            <p class="underline">Admin off: # 18B , Holmwood, Nankem Hospital Premises, Coonoor - 643101</p>
+            <p class="bold" style="font-size: 9pt;">GST No.33AALFK7353D1ZE</p>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 10px;">
+            <h3 class="underline" style="margin: 0; font-size: 12pt;">DELIVERY CHALLAN</h3>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold; font-size: 10pt;">
+            <div>Gatepass.No: <span style="border-bottom: 1px solid #000; min-width: 80px; display: inline-block;">&nbsp;</span></div>
+            <div>Date Of Despatch: <span id="p-date">--/--/----</span></div>
+            <div>Time Of Despatch: <span id="p-time">--:--</span></div>
+        </div>
+
+        <div style="margin-bottom: 10px; line-height: 1.3; font-size: 10.5pt;">
+            <p style="margin: 0;">Name & Address of the Consignee : <strong id="p-consignee-name">SELF</strong></p>
+            <p style="margin: 0; font-size: 10pt;" id="p-consignee-address">Kokkalatty Teea Traders, Ketty Palada</p>
+            <p style="margin: 3px 0; font-weight: bold; font-size: 10pt;">GST No.: <span id="p-consignee-gstin">33AAQFK2881H1Z2</span></p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2">Sl.Nos</th>
+                    <th rowspan="2">Grade</th>
+                    <th rowspan="2">No Of Package</th>
+                    <th rowspan="2">Invoice No</th>
+                    <th colspan="2">Sl. Nos.</th>
+                    <th rowspan="2">Unit Wt</th>
+                    <th rowspan="2">Gross Wt (Tea)</th>
+                    <th rowspan="2">Net Wt (+Bag)</th>
+                    <th rowspan="2">HSN</th>
+                </tr>
+                <tr>
+                    <th>From</th>
+                    <th>To</th>
+                </tr>
+            </thead>
+            <tbody id="p-table-body">
+                <!-- Rows injected here -->
+            </tbody>
+            <tfoot>
+                <tr style="font-weight: bold; background: #f9f9f9;">
+                    <td colspan="2" style="text-align: right;">TOTAL:</td>
+                    <td id="p-total-pkgs">0</td>
+                    <td colspan="4"></td>
+                    <td id="p-total-gross">0.00</td>
+                    <td id="p-total-qty">0.00</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div style="margin-top: 15px; font-weight: bold; font-size: 10pt; display: flex; flex-wrap: wrap; gap: 20px;">
+            <div>MANNER OF TRANSPORT: BY LORRY NO: <span id="p-vehicle-no" style="border-bottom: 1px solid black; padding: 0 10px; min-width: 120px; display: inline-block;">________________________</span></div>
+            <div>DRIVER: <span id="p-driver-name" style="border-bottom: 1px solid black; padding: 0 10px; min-width: 120px; display: inline-block;">________________________</span></div>
+            <div>CONTACT: <span id="p-driver-no" style="border-bottom: 1px solid black; padding: 0 10px; min-width: 100px; display: inline-block;">________________________</span></div>
+        </div>
+
+        <div style="margin-top: 60px; display: flex; justify-content: space-between; font-size: 10pt;">
+            <div style="text-align: center; border-top: 1px solid #000; width: 180px; padding-top: 5px;">
+                <p style="margin: 0; font-weight: bold;">SIGNATURE OF THE DRIVER</p>
+            </div>
+            <div style="text-align: center; border-top: 1px solid #000; width: 220px; padding-top: 5px;">
+                <p style="margin: 0; font-weight: bold;">SIGNATURE OF THE OWNER/ MANAGER</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let transferItems = [];
+        let currentGroupId = null;
+        let currentEntryDate = null;
+        let currentEntryTime = null;
+        let destinationsLog = [];
+        let driversLog = [];
+        let nextSerialFrom = 1;
+
+        // Load Autocomplete Data
+        const hsnMapping = {
+            'RD': '09024030',
+            'PD': '09024030',
+            'SRD': '09024030',
+            'BP': '09024020',
+            'BOP': '09024020',
+            'BOPL': '09024020',
+            'BOPS': '09024020',
+            'BOPF': '09024020'
+        };
+
+        function autoHSN() {
+            const grade = document.getElementById('grade').value.trim().toUpperCase();
+            if (hsnMapping[grade]) {
+                document.getElementById('hsn_code').value = hsnMapping[grade];
+            }
+        }
+
+        async function loadAutocomplete() {
+            try {
+                const [dRes, gRes, vRes, drRes] = await Promise.all([
+                    fetch('/api/branch1/destinations'),
+                    fetch('/api/branch1/grades'),
+                    fetch('/api/branch1/vehicles'),
+                    fetch('/api/branch1/drivers')
+                ]);
+                destinationsLog = await dRes.json();
+                const grades = await gRes.json();
+                const vehicles = await vRes.json();
+                driversLog = await drRes.json();
+
+                // Update Lists
+                const pList = document.getElementById('places-list');
+                const gList = document.getElementById('grades-list');
+                const vList = document.getElementById('vehicles-list');
+                const drList = document.getElementById('drivers-list');
+                
+                if (pList) pList.innerHTML = destinationsLog.map(d => `<option value="${d.name}">`).join('');
+                if (gList) gList.innerHTML = grades.map(g => `<option value="${g}">`).join('');
+                if (vList) vList.innerHTML = vehicles.map(v => `<option value="${v}">`).join('');
+                if (drList) drList.innerHTML = driversLog.map(d => `<option value="${d.name}">`).join('');
+            } catch(e) { console.error("Autocomplete load failed", e); }
+        }
+
+        function handlePlaceChange() {
+            const name = document.getElementById('dest_name').value;
+            const match = destinationsLog.find(d => d.name.toLowerCase() === name.toLowerCase());
+            if (match) {
+                document.getElementById('dest_address').value = match.address || '';
+                document.getElementById('dest_gstin').value = match.gstin || '';
+            }
+        }
+
+        function handleDriverChange() {
+            const name = document.getElementById('driver_name').value;
+            const match = driversLog.find(d => d.name.toLowerCase() === name.toLowerCase());
+            if (match) {
+                document.getElementById('driver_no').value = match.phone || '';
+            }
+        }
+
+        window.onload = loadAutocomplete;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const pkgInput = document.getElementById('no_of_packages');
+            if (pkgInput) {
+                pkgInput.addEventListener('input', calculateSerials);
+                pkgInput.addEventListener('change', calculateSerials);
+            }
+            calculateSerials();
+        });
+
+        function editEntry(groupId) {
+            currentGroupId = groupId;
+            fetch(`/api/branch1/transfer/details/${groupId}`)
+                .then(res => res.json())
+                .then(items => {
+                    transferItems = items.map(i => ({
+                        slNo: i.sl_no,
+                        grade: i.grade,
+                        batch: i.batch_invoice_no,
+                        pkgs: i.no_of_packages,
+                        netWt: i.net_weight_kgs,
+                        snFrom: i.serial_from,
+                        snTo: i.serial_to,
+                        totalQty: i.total_qty_kg,
+                        hsn: i.hsn_code
+                    }));
+                    currentEntryDate = items[0].entry_date;
+                    currentEntryTime = items[0].entry_time;
+                    
+                    // Set Destination data in modal
+                    document.getElementById('dest_name').value = items[0].destination_name || '';
+                    document.getElementById('dest_address').value = items[0].destination_address || '';
+                    document.getElementById('dest_gstin').value = items[0].destination_gstin || '';
+                    document.getElementById('vehicle_no').value = items[0].vehicle_no || '';
+                    document.getElementById('driver_name').value = items[0].driver_name || '';
+                    document.getElementById('driver_no').value = items[0].driver_no || '';
+
+                    renderTable();
+                    document.getElementById('transfer-modal-title').innerHTML = '<i class="fas fa-edit" style="color: var(--accent)"></i> Edit Transfer Entry';
+                    toggleTransferModal(true);
+                });
+        }
+
+        function printInvoice(id) {
+            const printSec = document.getElementById('print-section');
+            const pTbody = document.getElementById('p-table-body');
+            
+            const doPrint = (data, date, time) => {
+                pTbody.innerHTML = '';
+                let totalPkgs = 0;
+                let totalGrossSum = 0;
+                let totalNetSum = 0;
+
+                data.forEach((item, idx) => {
+                    const pkgs = parseInt(item.pkgs || item.no_of_packages || 0);
+                    const gross = parseFloat(item.grossWt || item.gross_weight || 0);
+                    const net = parseFloat(item.netWt || item.net_weight_kgs || 0);
+                    totalPkgs += pkgs;
+                    totalGrossSum += gross;
+                    totalNetSum += net;
+                    
+                    pTbody.innerHTML += `
+                        <tr>
+                            <td>${item.slNo || item.sl_no || (idx + 1)}</td>
+                            <td style="text-align: left; padding-left: 15px;">${item.grade}</td>
+                            <td>${pkgs}</td>
+                            <td>${item.batch || item.batch_invoice_no}</td>
+                            <td>${item.snFrom || item.serial_from || ''}</td>
+                            <td>${item.snTo || item.serial_to || ''}</td>
+                            <td>${item.unitWt || item.unit_weight || '-'}</td>
+                            <td style="font-weight: bold;">${gross.toFixed(2)}</td>
+                            <td style="font-weight: bold; color: #d00;">${net.toFixed(2)}</td>
+                            <td style="color: #666; font-size: 0.9em;">${item.hsn || item.hsn_code}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('p-date').innerText = date;
+                document.getElementById('p-time').innerText = time || '--:--';
+                document.getElementById('p-total-pkgs').innerText = totalPkgs;
+                document.getElementById('p-total-gross').innerText = totalGrossSum.toFixed(2);
+                document.getElementById('p-total-qty').innerText = totalNetSum.toFixed(2);
+
+                // Update Consignee Details if available
+                const first = data[0];
+                const destName = first.destination_name || document.getElementById('dest_name').value || 'SELF';
+                const destAddr = first.destination_address || document.getElementById('dest_address').value || 'Ketty Palada, Coonoor';
+                const destGstin = first.destination_gstin || document.getElementById('dest_gstin').value || '33AAQFK2881H1Z2';
+                const vehicleNo = first.vehicle_no || document.getElementById('vehicle_no').value || '';
+                const driverName = first.driver_name || document.getElementById('driver_name').value || '';
+                const driverNo = first.driver_no || document.getElementById('driver_no').value || '';
+
+                document.getElementById('p-consignee-name').innerText = destName;
+                
+                let displayAddr = destAddr;
+                if (destName.toLowerCase().includes("tea park")) {
+                    displayAddr += "\nFor Coonoor Auction Sales through M/s. Paramount Tea Marketing (SI) Pvt Ltd. Coonoor";
+                }
+                const addrEl = document.getElementById('p-consignee-address');
+                addrEl.style.whiteSpace = 'pre-line';
+                addrEl.innerText = displayAddr;
+
+                document.getElementById('p-consignee-gstin').innerText = destGstin;
+                document.getElementById('p-vehicle-no').innerText = vehicleNo || '________________________';
+                document.getElementById('p-driver-name').innerText = driverName || '________________________';
+                document.getElementById('p-driver-no').innerText = driverNo || '________________________';
+
+                printSec.style.display = 'block';
+                window.print();
+                printSec.style.display = 'none';
+            };
+
+            if (id === 'last') {
+                if (transferItems.length === 0) return alert("Nothing to print!");
+                doPrint(transferItems, new Date().toLocaleDateString('en-GB'), new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
+            } else {
+                fetch(`/api/branch1/transfer/details/${id}`)
+                    .then(res => res.json())
+                    .then(items => {
+                        if (items.length === 0) return alert("No details found.");
+                        doPrint(items, items[0].entry_date, items[0].entry_time);
+                    })
+                    .catch(err => alert("Error loading details for print."));
+            }
+        }
+
+        function viewEntry(groupId) {
+            const modal = document.getElementById('details-modal');
+            const tbody = document.getElementById('details-table-body');
+            const headerInfo = document.getElementById('details-header-info');
+            const printBtn = document.getElementById('details-print-btn');
+            
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px;"><i class="fas fa-spinner fa-spin"></i> Loading details...</td></tr>';
+            modal.style.display = 'flex';
+            
+            fetch(`/api/branch1/transfer/details/${groupId}`)
+                .then(res => res.json())
+                .then(items => {
+                    tbody.innerHTML = '';
+                    items.forEach(item => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${item.sl_no}</td>
+                                <td style="font-weight: 700;">${item.grade}</td>
+                                <td>${item.batch_invoice_no}</td>
+                                <td style="color: var(--text-muted);">${item.hsn_code}</td>
+                                <td>${item.no_of_packages}</td>
+                                <td>${item.unit_weight || '-'}</td>
+                                <td style="color: var(--secondary); font-weight: 700;">${item.gross_weight}</td>
+                                <td style="color: var(--accent); font-weight: 800;">${item.net_weight_kgs} KG</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    headerInfo.innerHTML = `<strong>Created:</strong> ${items[0].entry_date} at ${items[0].entry_time} 
+                                           ${items[0].vehicle_no ? `| <strong>Vehicle:</strong> ${items[0].vehicle_no}` : ''}
+                                           ${items[0].driver_name ? `| <strong>Driver:</strong> ${items[0].driver_name}` : ''}`;
+                    printBtn.onclick = () => printInvoice(groupId);
+                })
+                .catch(err => {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--danger);">Failed to load details.</td></tr>';
+                });
+        }
+
+        function deleteGroup(groupId) {
+            if (confirm("Are you sure you want to delete this Entire Invoice record? This action cannot be undone.")) {
+                fetch(`/api/branch1/transfer/delete/${groupId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                })
+                .catch(err => alert("Network error."));
+            }
+        }
+
+        function toggleTransferModal(show) {
+            if (!show) {
+                currentGroupId = null;
+                transferItems = [];
+                document.getElementById('dest_name').value = '';
+                document.getElementById('dest_address').value = '';
+                document.getElementById('dest_gstin').value = '';
+                document.getElementById('vehicle_no').value = '';
+                document.getElementById('driver_name').value = '';
+                document.getElementById('driver_no').value = '';
+                resetEntryFields();
+                renderTable();
+                document.getElementById('transfer-modal-title').innerHTML = '<i class="fas fa-plus-circle" style="color: var(--secondary)"></i> New Transfer Entry';
+            }
+            document.getElementById('transfer-modal').style.display = show ? 'flex' : 'none';
+            if (show) {
+                if (!currentGroupId) {
+                    resetEntryFields();
+                }
+                setTimeout(() => document.getElementById('dest_name').focus(), 100);
+            }
+        }
+
+        function calculateTotal() {
+            const pkgs = parseFloat(document.getElementById('no_of_packages').value) || 0;
+            const unitWt = parseFloat(document.getElementById('unit_weight').value) || 0;
+            const bagWt = parseFloat(document.getElementById('bag_weight').value) || 0;
+            
+            const totalTeaWeight = pkgs * unitWt;
+            const totalWithBagWeight = totalTeaWeight + (pkgs * bagWt);
+            
+            document.getElementById('gross_weight').value = totalTeaWeight.toFixed(2);
+            document.getElementById('net_weight_kgs').value = totalWithBagWeight.toFixed(2);
+            document.getElementById('total_qty_kg').value = totalTeaWeight.toFixed(2); // For backend consistency
+            calculateSerials();
+        }
+
+        function calculateSerials() {
+            const pkgs = parseInt(document.getElementById('no_of_packages').value) || 0;
+            const fromInput = document.getElementById('serial_from');
+            const toInput = document.getElementById('serial_to');
+
+            if (pkgs > 0) {
+                const start = parseInt(fromInput.value, 10) || nextSerialFrom;
+                fromInput.value = start;
+                toInput.value = start + pkgs - 1;
+            } else {
+                fromInput.value = '';
+                toInput.value = '';
+            }
+        }
+
+        function resetEntryFields() {
+            nextSerialFrom = 1;
+            document.getElementById('sl_no').value = '1';
+            document.getElementById('grade').value = '';
+            document.getElementById('batch_invoice_no').value = '';
+            document.getElementById('hsn_code').value = '';
+            document.getElementById('no_of_packages').value = '';
+            document.getElementById('unit_weight').value = '35';
+            document.getElementById('bag_weight').value = '0.260';
+            document.getElementById('gross_weight').value = '0.00';
+            document.getElementById('net_weight_kgs').value = '0.00';
+            document.getElementById('serial_from').value = '';
+            document.getElementById('serial_to').value = '';
+        }
+
+        function getNextInvoiceNumber(value) {
+            const current = (value || '').trim();
+            if (!current) {
+                return '';
+            }
+
+            const match = current.match(/^(.*?)(\d+)$/);
+            if (match) {
+                const prefix = match[1];
+                const num = match[2];
+                return prefix + (parseInt(num, 10) + 1).toString().padStart(num.length, '0');
+            }
+
+            if (!isNaN(current)) {
+                return String(parseInt(current, 10) + 1);
+            }
+
+            return '';
+        }
+
+        function addRow() {
+            const invoiceInput = document.getElementById('batch_invoice_no');
+            const nextInvoiceValue = getNextInvoiceNumber(invoiceInput.value);
+            const item = {
+                slNo: document.getElementById('sl_no').value,
+                grade: document.getElementById('grade').value,
+                batch: invoiceInput.value,
+                pkgs: parseInt(document.getElementById('no_of_packages').value) || 0,
+                unitWt: parseFloat(document.getElementById('unit_weight').value) || 0,
+                bagWt: parseFloat(document.getElementById('bag_weight').value) || 0,
+                grossWt: parseFloat(document.getElementById('gross_weight').value) || 0,
+                netWt: parseFloat(document.getElementById('net_weight_kgs').value) || 0,
+                snFrom: document.getElementById('serial_from').value,
+                snTo: document.getElementById('serial_to').value,
+                totalQty: document.getElementById('gross_weight').value, // Tea weight
+                hsn: document.getElementById('hsn_code').value
+            };
+
+            if (!item.grade || item.pkgs <= 0) {
+                alert("Please fill required fields (Grade and Packages).");
+                return;
+            }
+
+            transferItems.push(item);
+            
+            // Learn new HSN mapping if not exists
+            const gradeKey = item.grade.trim().toUpperCase();
+            if (item.hsn && !hsnMapping[gradeKey]) {
+                hsnMapping[gradeKey] = item.hsn;
+            }
+
+            renderTable();
+
+            if (item.snTo && !isNaN(item.snTo)) {
+                nextSerialFrom = parseInt(item.snTo, 10) + 1;
+            } else if (item.pkgs > 0) {
+                nextSerialFrom = (parseInt(item.snFrom, 10) || 1) + item.pkgs;
+            }
+
+            // Prepare inputs for next row
+            const gradeInput = document.getElementById('grade');
+            gradeInput.value = '';
+            invoiceInput.value = nextInvoiceValue;
+            document.getElementById('hsn_code').value = '';
+            document.getElementById('no_of_packages').value = '';
+            document.getElementById('serial_from').value = nextSerialFrom;
+            document.getElementById('serial_to').value = '';
+            document.getElementById('total_qty_kg').value = '0.00';
+            // Auto-focus back to Grade for the next entry
+            window.setTimeout(() => {
+                gradeInput.focus();
+                if (typeof gradeInput.select === 'function') {
+                    gradeInput.select();
+                }
+            }, 0);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            let tPkgs = 0, tQty = 0;
+
+            transferItems.forEach((item, index) => {
+                tPkgs += parseInt(item.pkgs);
+                tQty += parseFloat(item.totalQty);
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 800; color: var(--primary);">#${item.slNo}</td>
+                        <td style="color: var(--text-main); font-weight: 700;">${item.grade}</td>
+                        <td>${item.batch}</td>
+                        <td>${item.hsn}</td>
+                        <td>${item.pkgs}</td>
+                        <td>${item.unitWt || '-'}</td>
+                        <td style="color: var(--secondary); font-weight: 700;">${item.grossWt}</td>
+                        <td style="color: var(--accent); font-weight: 800;">${item.netWt} KG</td>
+                        <td style="text-align: right;">
+                            <button onclick="editRow(${index})" style="background: none; border: none; color: var(--accent); cursor: pointer; font-size: 1.1rem; margin-right: 10px;">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="transferItems.splice(${index}, 1); renderTable();" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1.1rem;">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('total_packages').innerText = tPkgs;
+            document.getElementById('grand_total_qty_kg').innerText = tQty.toFixed(2);
+            
+            // Increment Sl.No input field for the next entry
+            const slInput = document.getElementById('sl_no');
+            if (slInput) {
+                slInput.value = transferItems.length + 1;
+            }
+        }
+
+        function editRow(index) {
+            const item = transferItems[index];
+            document.getElementById('sl_no').value = item.slNo;
+            document.getElementById('grade').value = item.grade;
+            document.getElementById('batch_invoice_no').value = item.batch;
+            document.getElementById('no_of_packages').value = item.pkgs;
+            document.getElementById('unit_weight').value = item.unitWt || '35';
+            document.getElementById('bag_weight').value = item.bagWt || '0.260';
+            document.getElementById('serial_from').value = item.snFrom;
+            document.getElementById('serial_to').value = item.snTo;
+            document.getElementById('hsn_code').value = item.hsn || '0902';
+            calculateTotal();
+            document.getElementById('grade').focus();
+            
+            transferItems.splice(index, 1);
+            renderTable();
+        }
+
+        function submitTransfer() {
+            if (transferItems.length === 0) {
+                alert("Add at least one item first.");
+                return;
+            }
+            fetch('/api/branch1/transfer/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    items: transferItems,
+                    group_id: currentGroupId,
+                    date: currentEntryDate,
+                    time: currentEntryTime,
+                    destination: {
+                        name: document.getElementById('dest_name').value,
+                        address: document.getElementById('dest_address').value,
+                        gstin: document.getElementById('dest_gstin').value
+                    },
+                    vehicle_no: document.getElementById('vehicle_no').value,
+                    driver_name: document.getElementById('driver_name').value,
+                    driver_no: document.getElementById('driver_no').value
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('success-modal').style.display = 'flex';
+                } else {
+                    alert("Error: " + data.message);
+                }
+            })
+            .catch(err => alert("Network error."));
+        }
+        function sendDailyReport(btn) {
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            btn.disabled = true;
+
+            fetch('/send_daily_report')
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while sending the email.');
+                })
+                .finally(() => {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                });
+        }
+
+        document.getElementById('sendReportBtn').addEventListener('click', function () {
+            sendDailyReport(this);
+        });
+    </script>
+</body>
+</html>
