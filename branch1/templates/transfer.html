@@ -115,6 +115,151 @@
             padding: 30px;
             margin-bottom: 30px;
         }
+
+        /* History Table & Action Toolbar Alignment */
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+        }
+
+        table tbody tr {
+            transition: background 0.15s ease;
+        }
+
+        table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        table tbody td {
+            vertical-align: middle !important;
+            padding: 12px 14px;
+        }
+
+        .row-actions-container {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        .action-divider {
+            display: inline-block;
+            width: 1px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.12);
+            margin: 0 3px;
+        }
+
+        .action-icon-btn,
+        .action-pill-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 32px;
+            box-sizing: border-box;
+            border-radius: 6px;
+            border: 1px solid var(--glass-border);
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            line-height: 1;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-main);
+        }
+
+        .action-icon-btn {
+            width: 32px;
+            padding: 0;
+            font-size: 0.85rem;
+        }
+
+        .action-pill-btn {
+            padding: 0 10px;
+        }
+
+        .action-icon-btn:hover,
+        .action-pill-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Specific Button Themes */
+        .btn-act-wa {
+            border-color: rgba(37, 211, 102, 0.45);
+            color: #25D366;
+            background: rgba(37, 211, 102, 0.06);
+        }
+        .btn-act-wa:hover {
+            background: rgba(37, 211, 102, 0.2);
+            border-color: #25D366;
+            box-shadow: 0 0 10px rgba(37, 211, 102, 0.35);
+            color: #25D366;
+        }
+
+        .btn-act-pdf {
+            border-color: rgba(239, 68, 68, 0.45);
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.06);
+        }
+        .btn-act-pdf:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+            color: #ef4444;
+        }
+
+        .btn-act-view {
+            border-color: rgba(99, 102, 241, 0.45);
+            color: #818cf8;
+            background: rgba(99, 102, 241, 0.06);
+        }
+        .btn-act-view:hover {
+            background: rgba(99, 102, 241, 0.22);
+            border-color: #6366f1;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.35);
+        }
+
+        .btn-act-edit {
+            border-color: rgba(6, 182, 212, 0.45);
+            color: #22d3ee;
+            background: rgba(6, 182, 212, 0.06);
+        }
+        .btn-act-edit:hover {
+            background: rgba(6, 182, 212, 0.22);
+            border-color: #06b6d4;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.35);
+        }
+
+        .btn-act-print {
+            border-color: rgba(16, 185, 129, 0.45);
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.06);
+        }
+        .btn-act-print:hover {
+            background: rgba(16, 185, 129, 0.22);
+            border-color: #10b981;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-act-delete {
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.05);
+        }
+        .btn-act-delete:hover {
+            background: rgba(239, 68, 68, 0.22);
+            border-color: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+        }
     </style>
 </head>
 <body>
@@ -163,14 +308,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Date / Time</th>
-                            <th>Ref No.</th>
-                            <th>To</th>
-                            <th>Grades</th>
-                            <th>Items</th>
-                            <th>Total Pkgs</th>
-                            <th>Total Qty</th>
-                            <th style="text-align: right;">Action</th>
+                            <th style="min-width: 110px;">Date / Time</th>
+                            <th style="min-width: 130px;">Ref No.</th>
+                            <th style="min-width: 90px;">To</th>
+                            <th style="min-width: 110px;">Grades</th>
+                            <th style="min-width: 80px;">Items</th>
+                            <th style="min-width: 90px;">Total Pkgs</th>
+                            <th style="min-width: 100px;">Total Qty</th>
+                            <th style="text-align: right; min-width: 330px; width: 330px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -182,6 +327,11 @@
                             </td>
                             <td style="font-weight: 800; color: var(--primary);">
                                 {{ row.ref_no }}
+                                {% if row.gate_pass_no %}
+                                <div style="font-size: 0.72rem; color: var(--accent); font-weight: 700; margin-top: 2px;">
+                                    <i class="fas fa-ticket-alt" style="font-size: 0.65rem;"></i> GP No: {{ row.gate_pass_no }}
+                                </div>
+                                {% endif %}
                                 {% if row.vehicle_no %}
                                 <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 400; margin-top: 2px;">
                                     <i class="fas fa-truck" style="font-size: 0.65rem;"></i> {{ row.vehicle_no }}
@@ -195,18 +345,33 @@
                             <td><span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-muted);">{{ row.item_count }} rows</span></td>
                             <td style="font-weight: 700;">{{ row.total_packages }}</td>
                             <td style="color: var(--secondary); font-weight: 800;">{{ row.grand_total_qty }} KG</td>
-                            <td style="text-align: right;">
-                                <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
-                                    <button class="btn btn-outline" style="min-width: 80px; padding: 6px 12px; font-size: 0.8rem; border-color: var(--primary); color: var(--primary); font-weight: 700;" onclick="viewEntry('{{ row.group_id }}')">
+                            <td style="text-align: right; white-space: nowrap;">
+                                <div class="row-actions-container">
+                                    <!-- Share & PDF Export -->
+                                    <button type="button" class="action-icon-btn btn-act-wa" title="Share Delivery Challan via WhatsApp" onclick="openWhatsAppModal('{{ row.group_id }}')">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </button>
+                                    <a href="/api/branch1/transfer/pdf/{{ row.group_id }}?download=1" class="action-icon-btn btn-act-pdf" title="Download Official PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+
+                                    <span class="action-divider"></span>
+
+                                    <!-- Main Actions -->
+                                    <button type="button" class="action-pill-btn btn-act-view" title="View Details" onclick="viewEntry('{{ row.group_id }}')">
                                         <i class="fas fa-eye"></i> View
                                     </button>
-                                    <button class="btn btn-outline" style="min-width: 80px; padding: 6px 12px; font-size: 0.8rem; border-color: var(--accent); color: var(--accent); font-weight: 700;" onclick="editEntry('{{ row.group_id }}')">
+                                    <button type="button" class="action-pill-btn btn-act-edit" title="Edit Transfer" onclick="editEntry('{{ row.group_id }}')">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
-                                    <button class="btn btn-outline" style="min-width: 80px; padding: 6px 12px; font-size: 0.8rem; border-color: var(--secondary); color: var(--secondary); font-weight: 700;" onclick="printInvoice('{{ row.group_id }}')">
+                                    <button type="button" class="action-pill-btn btn-act-print" title="Print Invoice" onclick="printInvoice('{{ row.group_id }}')">
                                         <i class="fas fa-print"></i> Print
                                     </button>
-                                    <button class="btn btn-outline" style="min-width: 40px; padding: 6px 10px; font-size: 0.8rem; border-color: var(--danger); color: var(--danger);" onclick="deleteGroup('{{ row.group_id }}')">
+
+                                    <span class="action-divider"></span>
+
+                                    <!-- Delete -->
+                                    <button type="button" class="action-icon-btn btn-act-delete" title="Delete Transfer Record" onclick="deleteGroup('{{ row.group_id }}')">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
@@ -215,7 +380,7 @@
                         {% endfor %}
                         {% if not history %}
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">No transfer records found.</td>
+                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">No transfer records found.</td>
                         </tr>
                         {% endif %}
                     </tbody>
@@ -235,9 +400,13 @@
             <!-- Recipient Section -->
             <div class="compact-form" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                 <h4 style="margin-top: 0; color: var(--primary); display: flex; align-items: center; gap: 8px; margin-bottom: 15px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">
-                    <i class="fas fa-truck"></i> Transport Information
+                    <i class="fas fa-truck"></i> Transport Information & Gate Pass
                 </h4>
-                <div class="grid-4" style="grid-template-columns: 1fr 1.5fr 1fr 1fr; gap: 15px;">
+                <div class="grid-4" style="grid-template-columns: 0.8fr 1.2fr 1.4fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label style="color: var(--accent); font-weight: 700;">Gate Pass No</label>
+                        <input type="text" id="gate_pass_no" placeholder="e.g. 64" style="border-color: var(--accent); font-weight: 700;">
+                    </div>
                     <div class="form-group">
                         <label>Consignee</label>
                         <input type="text" id="dest_name" list="places-list" placeholder="Place..." onchange="handlePlaceChange()">
@@ -251,17 +420,17 @@
                         <label>GSTIN Number</label>
                         <input type="text" id="dest_gstin" placeholder="GSTIN">
                     </div>
-                    <div class="form-group">
-                        <label>Vehicle No</label>
-                        <input type="text" id="vehicle_no" list="vehicles-list" placeholder="Vehicle No">
-                        <datalist id="vehicles-list"></datalist>
-                    </div>
                 </div>
 
-                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 0; margin-bottom: 0;">
+                <div class="grid-3" style="grid-template-columns: 1.2fr 1fr 1fr; gap: 15px; margin-top: 0; margin-bottom: 0;">
+                    <div class="form-group">
+                        <label style="color: var(--secondary); font-weight: 700;">Vehicle Number</label>
+                        <input type="text" id="vehicle_no" list="vehicles-list" placeholder="e.g. TN43Q9939" style="font-weight: 700; text-transform: uppercase;">
+                        <datalist id="vehicles-list"></datalist>
+                    </div>
                     <div class="form-group">
                         <label>Driver Name</label>
-                        <input type="text" id="driver_name" list="drivers-list" placeholder="Driver Name" onchange="handleDriverChange()">
+                        <input type="text" id="driver_name" list="drivers-list" placeholder="e.g. MR. K B PRABHU" onchange="handleDriverChange()">
                         <datalist id="drivers-list"></datalist>
                     </div>
                     <div class="form-group">
@@ -381,19 +550,27 @@
 
     <!-- Success Modal -->
     <div id="success-modal" class="modal">
-        <div class="glass-card modal-content" style="max-width: 450px; text-align: center;">
-            <div style="font-size: 4rem; color: var(--success); margin-bottom: 20px;"><i class="fas fa-check-circle"></i></div>
-            <h2 style="color: var(--text-main);">Transfer Saved!</h2>
-            <p style="color: var(--text-muted); margin-bottom: 30px;">The transfer records have been successfully saved.</p>
-            <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
-                <div style="display: flex; gap: 15px;">
+        <div class="glass-card modal-content" style="max-width: 480px; text-align: center;">
+            <div style="font-size: 3.5rem; color: var(--success); margin-bottom: 15px;"><i class="fas fa-check-circle"></i></div>
+            <h2 style="color: var(--text-main); margin-bottom: 5px;">Transfer Saved!</h2>
+            <p style="color: var(--text-muted); margin-bottom: 25px;">The transfer records have been successfully saved.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px; justify-content: center;">
+                <div style="display: flex; gap: 10px;">
                     <button class="btn btn-primary" onclick="location.reload()" style="background: var(--secondary); flex: 1;">Done</button>
                     <button class="btn btn-outline" onclick="printInvoice('last')" style="border-color: var(--accent); color: var(--accent); flex: 1;">
                         <i class="fas fa-print"></i> Print Invoice
                     </button>
                 </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" id="success-wa-btn" style="border-color: #25D366; color: #25D366; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fab fa-whatsapp"></i> Share WhatsApp
+                    </button>
+                    <a id="success-pdf-btn" href="#" class="btn btn-outline" style="border-color: #ef4444; color: #ef4444; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
+                        <i class="fas fa-file-pdf"></i> Download PDF
+                    </a>
+                </div>
                 <button class="btn btn-outline" onclick="sendDailyReport(this)" style="border-color: var(--secondary); color: var(--secondary); width: 100%;">
-                    <i class="fas fa-paper-plane"></i> Send Report to Owner
+                    <i class="fas fa-paper-plane"></i> Send Daily Report via Email
                 </button>
             </div>
         </div>
@@ -432,9 +609,15 @@
                 </table>
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 15px;">
-                <button class="btn btn-outline" style="width: auto; padding: 12px 30px;" onclick="document.getElementById('details-modal').style.display='none'">Close</button>
-                <button id="details-print-btn" class="btn btn-primary" style="width: auto; padding: 12px 35px; background: var(--secondary);">
+            <div style="display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
+                <button class="btn btn-outline" style="width: auto; padding: 10px 25px;" onclick="document.getElementById('details-modal').style.display='none'">Close</button>
+                <button id="details-wa-btn" class="btn btn-outline" style="width: auto; padding: 10px 20px; border-color: #25D366; color: #25D366; display: flex; align-items: center; gap: 8px;">
+                    <i class="fab fa-whatsapp"></i> Share on WhatsApp
+                </button>
+                <a id="details-pdf-btn" href="#" class="btn btn-outline" style="width: auto; padding: 10px 20px; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; gap: 8px; text-decoration: none;">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </a>
+                <button id="details-print-btn" class="btn btn-primary" style="width: auto; padding: 10px 25px; background: var(--secondary);">
                     <i class="fas fa-print"></i> Print This Invoice
                 </button>
             </div>
@@ -450,7 +633,7 @@
         <div class="challan-header" style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px;">
             <h2 style="text-transform: uppercase;">Kokkalatty Tea Industry</h2>
             <p>KETTI PALADA NILGIRIS</p>
-            <p class="underline">Admin off: # 18B , Holmwood, Nankem Hospital Premises, Coonoor - 643101</p>
+            <p class="underline">Admin off: # 16B , Holm Wood, Nankem Hospital Premises, Coonoor – 643101</p>
             <p class="bold" style="font-size: 9pt;">GST No.33AALFK7353D1ZE</p>
         </div>
 
@@ -459,7 +642,7 @@
         </div>
 
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold; font-size: 10pt;">
-            <div>Gatepass.No: <span style="border-bottom: 1px solid #000; min-width: 80px; display: inline-block;">&nbsp;</span></div>
+            <div>Gate pass No: <span id="p-gate-pass-no" style="font-weight: bold;">--</span></div>
             <div>Date Of Despatch: <span id="p-date">--/--/----</span></div>
             <div>Time Of Despatch: <span id="p-time">--:--</span></div>
         </div>
@@ -503,18 +686,23 @@
             </tfoot>
         </table>
 
-        <div style="margin-top: 15px; font-weight: bold; font-size: 10pt; display: flex; flex-wrap: wrap; gap: 20px;">
-            <div>MANNER OF TRANSPORT: BY LORRY NO: <span id="p-vehicle-no" style="border-bottom: 1px solid black; padding: 0 10px; min-width: 120px; display: inline-block;">________________________</span></div>
-            <div>DRIVER: <span id="p-driver-name" style="border-bottom: 1px solid black; padding: 0 10px; min-width: 120px; display: inline-block;">________________________</span></div>
-            <div>CONTACT: <span id="p-driver-no" style="border-bottom: 1px solid black; padding: 0 10px; min-width: 100px; display: inline-block;">________________________</span></div>
+        <!-- Statutory Declaration -->
+        <div style="margin-top: 12px; border: 1px solid #333; padding: 6px 10px; font-size: 7.5pt; line-height: 1.35; text-align: justify;">
+            <strong>DECLARATION:</strong> The Teas in the above Invoices were made from Green Leaf which have only used PPFs as recommended in Plant Protection Code and have not used any chemicals and pesticides banned in India. In the event of detection of any banned pesticides or chemicals and their residues are beyond the prescribed limit Tea Board is free to take appropriate action as per the provisions of the Tea Marketing (Control) Order, 2003.
         </div>
 
-        <div style="margin-top: 60px; display: flex; justify-content: space-between; font-size: 10pt;">
-            <div style="text-align: center; border-top: 1px solid #000; width: 180px; padding-top: 5px;">
-                <p style="margin: 0; font-weight: bold;">SIGNATURE OF THE DRIVER</p>
+        <div style="margin-top: 12px; font-weight: bold; font-size: 9.5pt;">
+            MANNER OF TRANSPORT: <span id="p-manner-of-transport">BY ________________________, ________________________</span>
+            <span id="p-contact-wrap" style="margin-left: 20px; font-weight: normal; font-size: 9pt; display: none;">(Ph: <span id="p-driver-no"></span>)</span>
+        </div>
+
+        <div style="margin-top: 45px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 9.5pt; font-weight: bold; padding: 0 10px;">
+            <div style="text-align: left; color: #002B49;">
+                SIGNATURE OF THE DRIVER
             </div>
-            <div style="text-align: center; border-top: 1px solid #000; width: 220px; padding-top: 5px;">
-                <p style="margin: 0; font-weight: bold;">SIGNATURE OF THE OWNER/ MANAGER</p>
+            <div style="text-align: right; line-height: 1.3; color: #002B49;">
+                SIGNATURE OF THE<br/>
+                OWNER/ MANAGER
             </div>
         </div>
     </div>
@@ -621,6 +809,7 @@
                     currentEntryTime = items[0].entry_time;
                     
                     // Set Destination data in modal
+                    document.getElementById('gate_pass_no').value = items[0].gate_pass_no || '';
                     document.getElementById('dest_name').value = items[0].destination_name || '';
                     document.getElementById('dest_address').value = items[0].destination_address || '';
                     document.getElementById('dest_gstin').value = items[0].destination_gstin || '';
@@ -682,7 +871,9 @@
                 const vehicleNo = first.vehicle_no || document.getElementById('vehicle_no').value || '';
                 const driverName = first.driver_name || document.getElementById('driver_name').value || '';
                 const driverNo = first.driver_no || document.getElementById('driver_no').value || '';
+                const gatePass = first.gate_pass_no || document.getElementById('gate_pass_no').value || '--';
 
+                document.getElementById('p-gate-pass-no').innerText = gatePass;
                 document.getElementById('p-consignee-name').innerText = destName;
                 
                 let displayAddr = destAddr;
@@ -694,9 +885,27 @@
                 addrEl.innerText = displayAddr;
 
                 document.getElementById('p-consignee-gstin').innerText = destGstin;
-                document.getElementById('p-vehicle-no').innerText = vehicleNo || '________________________';
-                document.getElementById('p-driver-name').innerText = driverName || '________________________';
-                document.getElementById('p-driver-no').innerText = driverNo || '________________________';
+
+                // Format: MANNER OF TRANSPORT: BY <DRIVER_NAME>, <VEHICLE_NO>
+                let transportParts = [];
+                if (driverName.trim()) transportParts.push(driverName.trim().toUpperCase());
+                if (vehicleNo.trim()) transportParts.push(vehicleNo.trim().toUpperCase());
+
+                const mannerEl = document.getElementById('p-manner-of-transport');
+                if (transportParts.length > 0) {
+                    mannerEl.innerText = 'BY ' + transportParts.join(', ');
+                } else {
+                    mannerEl.innerText = 'BY ________________________, ________________________';
+                }
+
+                const contactWrap = document.getElementById('p-contact-wrap');
+                const driverNoEl = document.getElementById('p-driver-no');
+                if (driverNo.trim()) {
+                    driverNoEl.innerText = driverNo.trim();
+                    contactWrap.style.display = 'inline';
+                } else {
+                    contactWrap.style.display = 'none';
+                }
 
                 printSec.style.display = 'block';
                 window.print();
@@ -745,10 +954,15 @@
                         `;
                     });
                     
-                    headerInfo.innerHTML = `<strong>Created:</strong> ${items[0].entry_date} at ${items[0].entry_time} 
+                    const gpBadge = items[0].gate_pass_no ? `<span class="badge" style="background: rgba(245,158,11,0.2); color: #f59e0b; margin-right: 8px;">GP #${items[0].gate_pass_no}</span>` : '';
+                    headerInfo.innerHTML = `${gpBadge}<strong>Created:</strong> ${items[0].entry_date} at ${items[0].entry_time} 
                                            ${items[0].vehicle_no ? `| <strong>Vehicle:</strong> ${items[0].vehicle_no}` : ''}
                                            ${items[0].driver_name ? `| <strong>Driver:</strong> ${items[0].driver_name}` : ''}`;
                     printBtn.onclick = () => printInvoice(groupId);
+                    const waBtn = document.getElementById('details-wa-btn');
+                    if (waBtn) waBtn.onclick = () => openWhatsAppModal(groupId);
+                    const pdfBtn = document.getElementById('details-pdf-btn');
+                    if (pdfBtn) pdfBtn.href = `/api/branch1/transfer/pdf/${groupId}?download=1`;
                 })
                 .catch(err => {
                     tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--danger);">Failed to load details.</td></tr>';
@@ -774,6 +988,7 @@
             if (!show) {
                 currentGroupId = null;
                 transferItems = [];
+                document.getElementById('gate_pass_no').value = '';
                 document.getElementById('dest_name').value = '';
                 document.getElementById('dest_address').value = '';
                 document.getElementById('dest_gstin').value = '';
@@ -788,8 +1003,20 @@
             if (show) {
                 if (!currentGroupId) {
                     resetEntryFields();
+                    // Fetch latest serial and gate pass to suggest
+                    fetch('/api/branch1/last_serial')
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.last_gate_pass && !document.getElementById('gate_pass_no').value) {
+                                const gpNum = parseInt(data.last_gate_pass, 10);
+                                if (!isNaN(gpNum)) {
+                                    document.getElementById('gate_pass_no').value = String(gpNum + 1);
+                                }
+                            }
+                        })
+                        .catch(() => {});
                 }
-                setTimeout(() => document.getElementById('dest_name').focus(), 100);
+                setTimeout(() => document.getElementById('gate_pass_no').focus(), 100);
             }
         }
 
@@ -989,6 +1216,7 @@
                         address: document.getElementById('dest_address').value,
                         gstin: document.getElementById('dest_gstin').value
                     },
+                    gate_pass_no: document.getElementById('gate_pass_no').value.trim(),
                     vehicle_no: document.getElementById('vehicle_no').value,
                     driver_name: document.getElementById('driver_name').value,
                     driver_no: document.getElementById('driver_no').value
@@ -997,6 +1225,12 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    const savedId = data.group_id || currentGroupId;
+                    lastSavedGroupId = savedId;
+                    const waBtn = document.getElementById('success-wa-btn');
+                    if (waBtn) waBtn.onclick = () => openWhatsAppModal(savedId);
+                    const pdfBtn = document.getElementById('success-pdf-btn');
+                    if (pdfBtn) pdfBtn.href = `/api/branch1/transfer/pdf/${savedId}?download=1`;
                     document.getElementById('success-modal').style.display = 'flex';
                 } else {
                     alert("Error: " + data.message);
@@ -1027,6 +1261,148 @@
         document.getElementById('sendReportBtn').addEventListener('click', function () {
             sendDailyReport(this);
         });
+
+        // --- WHATSAPP MODAL & SHARING LOGIC ---
+        let currentWaSummary = null;
+
+        function openWhatsAppModal(groupId) {
+            if (groupId === 'last') {
+                groupId = lastSavedGroupId;
+            }
+            if (!groupId) {
+                alert("Please select or save a transfer first.");
+                return;
+            }
+
+            const modal = document.getElementById('whatsapp-modal');
+            const phoneInput = document.getElementById('wa-phone');
+            const msgPreview = document.getElementById('wa-message-preview');
+            const downloadPdfBtn = document.getElementById('wa-download-pdf-btn');
+            const nativeShareBtn = document.getElementById('wa-native-share-btn');
+
+            msgPreview.value = "Loading transfer details...";
+            modal.style.display = 'flex';
+
+            fetch(`/api/branch1/transfer/summary/${groupId}`)
+                .then(res => res.json())
+                .then(summary => {
+                    if (!summary.success) {
+                        alert(summary.message || "Failed to load summary.");
+                        modal.style.display = 'none';
+                        return;
+                    }
+                    currentWaSummary = summary;
+                    phoneInput.value = summary.suggested_phone || '';
+                    msgPreview.value = summary.whatsapp_text || '';
+                    downloadPdfBtn.href = summary.pdf_url;
+
+                    // Check if native Web Share with files is supported
+                    if (navigator.canShare) {
+                        nativeShareBtn.style.display = 'inline-flex';
+                    } else {
+                        nativeShareBtn.style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    msgPreview.value = "Error loading summary. Please try again.";
+                });
+        }
+
+        function closeWhatsAppModal() {
+            document.getElementById('whatsapp-modal').style.display = 'none';
+            currentWaSummary = null;
+        }
+
+        function triggerWhatsAppSend() {
+            if (!currentWaSummary) return;
+
+            const phoneInput = document.getElementById('wa-phone');
+            const msgText = document.getElementById('wa-message-preview').value;
+            const cleanPhone = phoneInput.value.replace(/[^0-9]/g, '');
+
+            // 1. Trigger PDF download to user device
+            const dlLink = document.createElement('a');
+            dlLink.href = currentWaSummary.pdf_url;
+            dlLink.download = `Delivery_Challan_${currentWaSummary.ref_no}.pdf`;
+            document.body.appendChild(dlLink);
+            dlLink.click();
+            document.body.removeChild(dlLink);
+
+            // 2. Open WhatsApp Web / App
+            let waUrl = '';
+            if (cleanPhone) {
+                waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msgText)}`;
+            } else {
+                waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msgText)}`;
+            }
+
+            setTimeout(() => {
+                window.open(waUrl, '_blank');
+            }, 300);
+        }
+
+        async function triggerNativeShare() {
+            if (!currentWaSummary) return;
+            try {
+                const msgText = document.getElementById('wa-message-preview').value;
+                const response = await fetch(currentWaSummary.pdf_url);
+                const blob = await response.blob();
+                const file = new File([blob], `Delivery_Challan_${currentWaSummary.ref_no}.pdf`, { type: 'application/pdf' });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: `Delivery Challan - ${currentWaSummary.ref_no}`,
+                        text: msgText,
+                        files: [file]
+                    });
+                } else {
+                    triggerWhatsAppSend();
+                }
+            } catch (err) {
+                console.log('Share canceled or error:', err);
+            }
+        }
     </script>
+
+    <!-- WhatsApp Share Modal -->
+    <div id="whatsapp-modal" class="modal">
+        <div class="glass-card modal-content" style="max-width: 520px; padding: 35px;">
+            <span class="close-btn" onclick="closeWhatsAppModal()">&times;</span>
+            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 20px;">
+                <div style="font-size: 2.2rem; color: #25D366;"><i class="fab fa-whatsapp"></i></div>
+                <div>
+                    <h3 style="margin: 0; color: var(--text-main); font-weight: 800;">Share Invoice via WhatsApp</h3>
+                    <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Send Delivery Challan PDF & Summary</p>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Recipient WhatsApp Number (with country code)</label>
+                <input type="text" id="wa-phone" placeholder="e.g. 919876543210" style="font-size: 1rem; font-weight: 600;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Challan Message Preview</label>
+                <textarea id="wa-message-preview" rows="7" style="width: 100%; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); color: var(--text-main); border-radius: 8px; padding: 10px; font-family: monospace; font-size: 0.82rem; resize: none;"></textarea>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-primary" onclick="triggerWhatsAppSend()" style="background: #25D366; color: white; display: flex; justify-content: center; align-items: center; gap: 10px; font-weight: 700; box-shadow: 0 0 15px rgba(37, 211, 102, 0.4); padding: 12px;">
+                    <i class="fab fa-whatsapp" style="font-size: 1.2rem;"></i> Open WhatsApp & Download PDF
+                </button>
+                <div style="display: flex; gap: 10px;">
+                    <a id="wa-download-pdf-btn" href="#" class="btn btn-outline" style="border-color: #ef4444; color: #ef4444; flex: 1; text-align: center; text-decoration: none; padding: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-file-pdf"></i> Download PDF
+                    </a>
+                    <button id="wa-native-share-btn" class="btn btn-outline" onclick="triggerNativeShare()" style="border-color: var(--primary); color: var(--primary); flex: 1; display: none; align-items: center; justify-content: center; gap: 8px; padding: 10px;">
+                        <i class="fas fa-share-alt"></i> Native Share (PDF)
+                    </button>
+                </div>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 15px; margin-bottom: 0; text-align: center;">
+                💡 <em>Clicking 'Open WhatsApp' downloads the official PDF to your computer and opens the WhatsApp chat with the details. Simply attach the PDF in the chat.</em>
+            </p>
+        </div>
+    </div>
 </body>
 </html>

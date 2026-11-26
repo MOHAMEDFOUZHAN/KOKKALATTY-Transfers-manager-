@@ -9,18 +9,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .settings-card {
-            max-width: 500px;
-            margin: 60px auto;
-            padding: 40px;
+            padding: 35px;
+            margin-bottom: 30px;
         }
         .form-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
         .form-header i {
-            font-size: 3rem;
+            font-size: 2.5rem;
             color: var(--primary);
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
         .alert {
             padding: 12px;
@@ -28,15 +27,17 @@
             margin-bottom: 20px;
             font-size: 0.9rem;
             display: none;
+            line-height: 1.4;
         }
         .alert-success { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
         .alert-error { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+        .alert-info { background: rgba(6, 182, 212, 0.2); color: var(--accent); border: 1px solid var(--accent); }
     </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="brand-text" style="font-weight: 800; font-size: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-leaf"></i> MAPLE PRO
+            <i class="fas fa-leaf"></i> HOLMWOOD BRANCH 1
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
             <a href="{{ url_for('dashboard') }}" style="color: var(--text-main); text-decoration: none; font-weight: 600;">
@@ -49,49 +50,110 @@
         </div>
     </nav>
 
-    <div class="container">
-        <div class="glass-card settings-card">
-            <div class="form-header">
-                <i class="fas fa-user-shield"></i>
-                <h2 style="color: var(--text-main); font-weight: 800; margin: 0;">Account Settings</h2>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Change your username and password</p>
+    <div class="container" style="max-width: 1100px; margin-top: 30px;">
+        <h1 style="font-weight: 800; color: var(--text-main); margin-bottom: 30px; display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-cog" style="color: var(--primary);"></i> System Settings
+        </h1>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 30px; align-items: start;">
+            <!-- Card 1: Email & Report Settings -->
+            <div class="glass-card settings-card">
+                <div class="form-header">
+                    <i class="fas fa-envelope-open-text" style="color: var(--secondary);"></i>
+                    <h2 style="color: var(--text-main); font-weight: 800; margin: 0; font-size: 1.4rem;">Email & Daily Report Settings</h2>
+                    <p style="color: var(--text-muted); font-size: 0.85rem;">Configure Gmail SMTP for Daily Reports</p>
+                </div>
+
+                <div id="email-alert-box" class="alert"></div>
+
+                <form id="email-settings-form">
+                    <div style="background: rgba(255,255,255,0.03); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+                        <h4 style="color: var(--secondary); margin-top: 0; margin-bottom: 12px; font-size: 0.8rem; text-transform: uppercase;">
+                            <i class="fas fa-paper-plane"></i> Sender Configuration (Gmail)
+                        </h4>
+                        <div class="form-group" style="margin-bottom: 14px;">
+                            <label>Sender Gmail Address</label>
+                            <input type="email" id="sender_email" required placeholder="e.g. factory@gmail.com">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 6px;">
+                            <label>Gmail App Password (16 characters)</label>
+                            <input type="password" id="sender_password" placeholder="Leave empty to keep existing password">
+                        </div>
+                        <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; line-height: 1.3;">
+                            ⚠️ <strong>Important:</strong> Google requires a 16-character <em>App Password</em> (not your normal Gmail password). 
+                            Generate one at <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color: var(--accent); text-decoration: underline;">myaccount.google.com/apppasswords</a>.
+                        </p>
+                    </div>
+
+                    <div style="background: rgba(99, 102, 241, 0.05); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+                        <h4 style="color: var(--primary); margin-top: 0; margin-bottom: 12px; font-size: 0.8rem; text-transform: uppercase;">
+                            <i class="fas fa-inbox"></i> Report Recipients
+                        </h4>
+                        <div class="form-group" style="margin-bottom: 14px;">
+                            <label>Owner / Manager Email</label>
+                            <input type="email" id="receiver_email" required placeholder="e.g. owner@factory.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Default WhatsApp Recipient (with Country Code)</label>
+                            <input type="text" id="whatsapp_phone" placeholder="e.g. 919876543210">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px;">
+                        <button type="submit" class="btn btn-primary" id="save-email-btn" style="flex: 1; background: var(--secondary); display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <i class="fas fa-save"></i> Save Settings
+                        </button>
+                        <button type="button" class="btn btn-outline" id="test-email-btn" onclick="runEmailTest()" style="flex: 1; border-color: var(--accent); color: var(--accent); display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <i class="fas fa-vial"></i> Send Test Email
+                        </button>
+                    </div>
+                </form>
             </div>
 
-            <div id="alert-box" class="alert"></div>
-
-            <form id="change-form">
-                <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--secondary); margin-top: 0; margin-bottom: 15px; font-size: 0.8rem; text-transform: uppercase;">Current Credentials</h4>
-                    <div class="form-group">
-                        <label>Current Username</label>
-                        <input type="text" id="curr_username" required placeholder="Your current username">
-                    </div>
-                    <div class="form-group">
-                        <label>Current Password</label>
-                        <input type="password" id="curr_password" required placeholder="••••••••">
-                    </div>
+            <!-- Card 2: Account Settings -->
+            <div class="glass-card settings-card">
+                <div class="form-header">
+                    <i class="fas fa-user-shield"></i>
+                    <h2 style="color: var(--text-main); font-weight: 800; margin: 0; font-size: 1.4rem;">Account Credentials</h2>
+                    <p style="color: var(--text-muted); font-size: 0.85rem;">Change username and login password</p>
                 </div>
 
-                <div style="background: rgba(99, 102, 241, 0.05); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--primary); margin-top: 0; margin-bottom: 15px; font-size: 0.8rem; text-transform: uppercase;">New Credentials</h4>
-                    <div class="form-group">
-                        <label>New Username</label>
-                        <input type="text" id="new_username" required placeholder="Enter new username">
-                    </div>
-                    <div class="form-group">
-                        <label>New Password</label>
-                        <input type="password" id="new_password" required placeholder="Enter new password">
-                    </div>
-                    <div class="form-group">
-                        <label>Confirm New Password</label>
-                        <input type="password" id="conf_password" required placeholder="Confirm new password">
-                    </div>
-                </div>
+                <div id="alert-box" class="alert"></div>
 
-                <button type="submit" class="btn btn-primary" id="submit-btn" style="display: flex; justify-content: center; align-items: center; gap: 10px;">
-                    UPDATE ACCOUNT <i class="fas fa-save"></i>
-                </button>
-            </form>
+                <form id="change-form">
+                    <div style="background: rgba(255,255,255,0.03); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+                        <h4 style="color: var(--secondary); margin-top: 0; margin-bottom: 12px; font-size: 0.8rem; text-transform: uppercase;">Current Credentials</h4>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>Current Username</label>
+                            <input type="text" id="curr_username" required placeholder="Your current username">
+                        </div>
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="curr_password" required placeholder="••••••••">
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(99, 102, 241, 0.05); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+                        <h4 style="color: var(--primary); margin-top: 0; margin-bottom: 12px; font-size: 0.8rem; text-transform: uppercase;">New Credentials</h4>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>New Username</label>
+                            <input type="text" id="new_username" required placeholder="Enter new username">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>New Password</label>
+                            <input type="password" id="new_password" required placeholder="Enter new password">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="conf_password" required placeholder="Confirm new password">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="submit-btn" style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+                        UPDATE ACCOUNT <i class="fas fa-save"></i>
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -148,6 +210,105 @@
                 submitBtn.innerHTML = 'UPDATE ACCOUNT <i class="fas fa-save"></i>';
             }
         });
+
+        // Load Email Settings on page load
+        async function loadEmailSettings() {
+            try {
+                const res = await fetch('/api/settings/email');
+                const data = await res.json();
+                document.getElementById('sender_email').value = data.sender_email || '';
+                document.getElementById('receiver_email').value = data.receiver_email || '';
+                document.getElementById('whatsapp_phone').value = data.whatsapp_phone || '';
+                if (data.has_password) {
+                    document.getElementById('sender_password').placeholder = '•••••••••••••••• (Configured)';
+                }
+            } catch (err) {
+                console.error("Failed to load email settings:", err);
+            }
+        }
+        loadEmailSettings();
+
+        // Save Email Settings
+        document.getElementById('email-settings-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const saveBtn = document.getElementById('save-email-btn');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            const payload = {
+                sender_email: document.getElementById('sender_email').value.trim(),
+                receiver_email: document.getElementById('receiver_email').value.trim(),
+                whatsapp_phone: document.getElementById('whatsapp_phone').value.trim()
+            };
+            const pwd = document.getElementById('sender_password').value.trim();
+            if (pwd) {
+                payload.sender_password = pwd;
+            }
+
+            try {
+                const res = await fetch('/api/settings/email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showEmailAlert(data.message, 'success');
+                    document.getElementById('sender_password').value = '';
+                    document.getElementById('sender_password').placeholder = '•••••••••••••••• (Configured)';
+                } else {
+                    showEmailAlert(data.message || 'Error saving settings.', 'error');
+                }
+            } catch (err) {
+                showEmailAlert('Network error while saving settings.', 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Settings';
+            }
+        });
+
+        // Test Email Connection
+        async function runEmailTest() {
+            const testBtn = document.getElementById('test-email-btn');
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing Connection...';
+            showEmailAlert('Testing SMTP connection with Gmail... please wait.', 'info');
+
+            const payload = {
+                sender_email: document.getElementById('sender_email').value.trim(),
+                receiver_email: document.getElementById('receiver_email').value.trim()
+            };
+            const pwd = document.getElementById('sender_password').value.trim();
+            if (pwd) {
+                payload.sender_password = pwd;
+            }
+
+            try {
+                const res = await fetch('/api/settings/test_email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showEmailAlert(`✅ ${data.message}`, 'success');
+                } else {
+                    showEmailAlert(`❌ ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showEmailAlert('Network error while communicating with server.', 'error');
+            } finally {
+                testBtn.disabled = false;
+                testBtn.innerHTML = '<i class="fas fa-vial"></i> Send Test Email';
+            }
+        }
+
+        function showEmailAlert(msg, type) {
+            const box = document.getElementById('email-alert-box');
+            box.innerHTML = msg;
+            box.className = 'alert ' + (type === 'success' ? 'alert-success' : (type === 'info' ? 'alert-info' : 'alert-error'));
+            box.style.display = 'block';
+        }
 
         function showAlert(msg, type) {
             const alertBox = document.getElementById('alert-box');

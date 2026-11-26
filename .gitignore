@@ -8,6 +8,7 @@ build/
 dist/
 *.manifest
 *.spec
+!KOKKALATTY_TRANSFERS.spec
 
 # Database files
 *.db

@@ -5,12 +5,18 @@ import threading
 import webbrowser
 import time
 import random
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 import sys
+import io
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 try:
     from fpdf import FPDF
@@ -30,33 +36,53 @@ def resource_path(relative_path):
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
+def find_available_port(start_port=5003):
+    import socket
+    port = start_port
+    while port < start_port + 50:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('127.0.0.1', port)) != 0:
+                return port
+        port += 1
+    return start_port
+
 def run_flask():
-    print("Attempting to start server on port 5003...")
+    port = find_available_port(5003)
+    server_url = f"http://127.0.0.1:{port}"
+    print(f"Starting Kokkalatty Transfers server on {server_url}...")
     
     # Run the server in a separate thread
     def start_server():
         try:
-            serve(app, host="127.0.0.1", port=5003)
-        except NameError:
-            app.run(port=5003, debug=False, use_reloader=False)
+            from waitress import serve
+            serve(app, host="127.0.0.1", port=port, threads=6)
+        except Exception as e:
+            print(f"Waitress notice ({e}), running with Flask server...")
+            app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
             
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()
     
     # Wait for server to initialize
-    time.sleep(1)
+    time.sleep(1.2)
     
+    gui_launched = False
     try:
         import webview
         print("Launching desktop window...")
-        webview.create_window('Tea Transfers - Branch 1', 'http://127.0.0.1:5003', width=1200, height=800)
+        webview.create_window('Kokkalatty Transfers Manager', server_url, width=1280, height=850, min_size=(900, 600))
         webview.start()
-    except ImportError:
-        print("pywebview not found. Opening in default browser instead...")
-        webbrowser.open("http://127.0.0.1:5003")
-        # Keep the main thread alive if we don't have webview
-        while True:
-            time.sleep(10)
+        gui_launched = True
+    except Exception as e:
+        print(f"Desktop window notice ({e}). Opening in default browser instead...")
+    
+    if not gui_launched:
+        webbrowser.open(server_url)
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
 
 def get_db_path():
     # 1. Target local path (where the EXE/script is)
@@ -84,16 +110,15 @@ def get_db_path():
         return documents_db
 
 app = Flask(__name__,
-            template_folder=resource_path('templates'),
+            template_folder=resource_path('branch1/templates'),
             static_folder=resource_path('static'))
 
 # Configure multi-folder template loading
-app.jinja_loader = ChoiceLoader([
-    FileSystemLoader(resource_path('templates')),
-    FileSystemLoader(resource_path('branch1/templates')),
-    FileSystemLoader(resource_path('branch2/templates')),
-    FileSystemLoader(resource_path('.')) # For login.html at root
-])
+template_loaders = []
+for p in [resource_path('templates'), resource_path('branch1/templates'), resource_path('branch2/templates'), resource_path('.')]:
+    if os.path.exists(p):
+        template_loaders.append(FileSystemLoader(p))
+app.jinja_loader = ChoiceLoader(template_loaders)
 
 app.secret_key = 'factory_transfer_secret_key_789'
 
@@ -221,6 +246,9 @@ def init_db():
     try:
         conn.execute('ALTER TABLE branch1_transfers ADD COLUMN driver_no TEXT')
     except: pass
+    try:
+        conn.execute('ALTER TABLE branch1_transfers ADD COLUMN gate_pass_no TEXT')
+    except: pass
     
     conn.execute('''CREATE TABLE IF NOT EXISTS branch1_drivers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -267,6 +295,11 @@ def init_db():
         password TEXT
     )''')
     
+    conn.execute('''CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )''')
+    
     conn.commit()
     conn.close()
 
@@ -279,6 +312,37 @@ def get_user(username):
     conn.close()
     return user
 
+def get_app_setting(key, default=''):
+    try:
+        conn = get_db_connection()
+        row = conn.execute('SELECT value FROM app_settings WHERE key = ?', (key,)).fetchone()
+        conn.close()
+        return row['value'] if row and row['value'] is not None else default
+    except:
+        return default
+
+def set_app_setting(key, value):
+    conn = get_db_connection()
+    conn.execute('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', (key, str(value)))
+    conn.commit()
+    conn.close()
+
+# Seed default settings
+def seed_settings():
+    defaults = {
+        'sender_email': 'maplepro2323@gmail.com',
+        'sender_password': 'vkah llvc mduj yfze',
+        'receiver_email': '24bcs228@kgcas.com',
+        'smtp_host': 'smtp.gmail.com',
+        'smtp_port': '587',
+        'whatsapp_phone': ''
+    }
+    conn = get_db_connection()
+    for k, v in defaults.items():
+        conn.execute('INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)', (k, v))
+    conn.commit()
+    conn.close()
+
 # Seed users if none exist
 def seed_users():
     conn = get_db_connection()
@@ -290,6 +354,7 @@ def seed_users():
     conn.close()
 
 seed_users()
+seed_settings()
 
 @app.route('/')
 def index():
@@ -429,6 +494,7 @@ def branch1_transfer():
             SUM(total_qty_kg) as grand_total_qty,
             GROUP_CONCAT(grade, ", ") as grades,
             MIN(batch_invoice_no) as ref_no,
+            MIN(gate_pass_no) as gate_pass_no,
             MIN(destination_name) as dest_name,
             MIN(vehicle_no) as vehicle_no
         FROM branch1_transfers 
@@ -526,6 +592,7 @@ def save_branch1_transfer():
 
         driver_name = data.get('driver_name', '')
         driver_no = data.get('driver_no', '')
+        gate_pass_no = data.get('gate_pass_no', '')
 
         # Save destination if new or updated
         if dest_name and dest_name != 'SELF':
@@ -543,10 +610,10 @@ def save_branch1_transfer():
 
         for item in items:
             conn.execute('''INSERT INTO branch1_transfers 
-                           (sl_no, grade, batch_invoice_no, hsn_code, no_of_packages, serial_from, serial_to, net_weight_kgs, total_qty_kg, entry_date, entry_time, group_id, destination_name, destination_address, destination_gstin, vehicle_no, gross_weight, bag_weight, unit_weight, driver_name, driver_no)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                           (sl_no, grade, batch_invoice_no, hsn_code, no_of_packages, serial_from, serial_to, net_weight_kgs, total_qty_kg, entry_date, entry_time, group_id, destination_name, destination_address, destination_gstin, vehicle_no, gross_weight, bag_weight, unit_weight, driver_name, driver_no, gate_pass_no)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                         (item['slNo'], item['grade'], item['batch'], item.get('hsn', ''), item['pkgs'], 
-                         item['snFrom'], item['snTo'], item['netWt'], item['totalQty'], date_str, time_str, group_id, dest_name, dest_addr, dest_gstin, vehicle_no, item.get('grossWt'), item.get('bagWt'), item.get('unitWt'), driver_name, driver_no))
+                         item['snFrom'], item['snTo'], item['netWt'], item['totalQty'], date_str, time_str, group_id, dest_name, dest_addr, dest_gstin, vehicle_no, item.get('grossWt'), item.get('bagWt'), item.get('unitWt'), driver_name, driver_no, gate_pass_no))
         
         conn.commit()
         conn.close()
@@ -625,12 +692,469 @@ def get_branch1_grades():
 @app.route('/api/branch1/last_serial')
 def get_branch1_last_serial():
     if 'username' not in session or session['username'] != 'branch1':
-        return jsonify({'last_serial': 0}), 403
+        return jsonify({'last_serial': 0, 'last_gate_pass': ''}), 403
     conn = get_db_connection()
     row = conn.execute('SELECT MAX(serial_to) as last_val FROM branch1_transfers').fetchone()
+    gp_row = conn.execute('SELECT gate_pass_no FROM branch1_transfers WHERE gate_pass_no IS NOT NULL AND gate_pass_no != "" ORDER BY id DESC LIMIT 1').fetchone()
     conn.close()
-    last_val = row['last_val'] if row['last_val'] else 0
-    return jsonify({'last_serial': last_val})
+    last_val = row['last_val'] if row and row['last_val'] else 0
+    last_gp = gp_row['gate_pass_no'] if gp_row and gp_row['gate_pass_no'] else ''
+    return jsonify({'last_serial': last_val, 'last_gate_pass': last_gp})
+
+
+# --- PDF GENERATION & WHATSAPP INTEGRATION ---
+
+def generate_challan_pdf(group_id):
+    conn = get_db_connection()
+    items = conn.execute('SELECT * FROM branch1_transfers WHERE group_id = ? ORDER BY sl_no ASC, id ASC', (group_id,)).fetchall()
+    conn.close()
+    
+    if not items:
+        return None, None, None
+
+    first = items[0]
+    gate_pass_no = first['gate_pass_no'] or ''
+    date_str = first['entry_date'] or ''
+    time_str = first['entry_time'] or ''
+    consignee_name = first['destination_name'] or 'SELF'
+    consignee_addr = first['destination_address'] or 'Kokkalatty Tea Traders, Ketty Palada'
+    consignee_gstin = first['destination_gstin'] or '33AAQFK2881H1Z2'
+    vehicle_no = first['vehicle_no'] or ''
+    driver_name = first['driver_name'] or ''
+    driver_no = first['driver_no'] or ''
+    ref_no = first['batch_invoice_no'] or 'CHALLAN'
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=20,
+        rightMargin=20,
+        topMargin=20,
+        bottomMargin=20
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CompanyTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=18,
+        alignment=1,
+        textTransform='uppercase'
+    )
+    sub_style = ParagraphStyle(
+        'SubTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11,
+        alignment=1
+    )
+    bold_sub = ParagraphStyle(
+        'BoldSub',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=12,
+        alignment=1
+    )
+    doc_title = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=12,
+        leading=15,
+        alignment=1
+    )
+    cell_style = ParagraphStyle(
+        'CellText',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10,
+        alignment=1
+    )
+    cell_bold = ParagraphStyle(
+        'CellBold',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=10,
+        alignment=1
+    )
+
+    elements = []
+    elements.append(Paragraph('KOKKALATTY TEA INDUSTRY', title_style))
+    elements.append(Paragraph('KETTI PALADA NILGIRIS', sub_style))
+    elements.append(Paragraph('<u>Admin off: # 16B , Holm Wood, Nankem Hospital Premises, Coonoor – 643101</u>', sub_style))
+    elements.append(Paragraph('GST No.33AALFK7353D1ZE', bold_sub))
+    elements.append(Spacer(1, 4))
+    elements.append(HRFlowable(width='100%', thickness=1.5, color=colors.black, spaceAfter=6, spaceBefore=2))
+    elements.append(Paragraph('<u>DELIVERY CHALLAN</u>', doc_title))
+    elements.append(Spacer(1, 8))
+
+    # Meta row
+    meta_data = [
+        [
+            Paragraph(f'<b>Gate pass No:</b> {gate_pass_no or "____"}', styles['Normal']),
+            Paragraph(f'<b>Date Of Despatch:</b> {date_str}', styles['Normal']),
+            Paragraph(f'<b>Time of Despatch:</b> {time_str}', styles['Normal'])
+        ]
+    ]
+    meta_table = Table(meta_data, colWidths=[180, 185, 190])
+    meta_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+    ]))
+    elements.append(meta_table)
+    elements.append(Spacer(1, 6))
+
+    # Consignee box
+    display_addr = consignee_addr
+    if 'tea park' in consignee_name.lower():
+        display_addr += '<br/>For Coonoor Auction Sales through M/s. Paramount Tea Marketing (SI) Pvt Ltd. Coonoor'
+
+    consignee_p = Paragraph(
+        f'<b>Name & Address of the Consignee:</b> <b>{consignee_name}</b><br/>'
+        f'{display_addr}<br/>'
+        f'<b>GST No.:</b> {consignee_gstin}',
+        styles['Normal']
+    )
+    consignee_table = Table([[consignee_p]], colWidths=[555])
+    consignee_table.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ('BACKGROUND', (0,0), (-1,-1), colors.whitesmoke)
+    ]))
+    elements.append(consignee_table)
+    elements.append(Spacer(1, 8))
+
+    # Items table
+    headers = [
+        Paragraph('<b>Sl.No</b>', cell_bold),
+        Paragraph('<b>Grade</b>', cell_bold),
+        Paragraph('<b>No Of<br/>Pkgs</b>', cell_bold),
+        Paragraph('<b>Invoice No</b>', cell_bold),
+        Paragraph('<b>Sl.From</b>', cell_bold),
+        Paragraph('<b>Sl.To</b>', cell_bold),
+        Paragraph('<b>Unit Wt</b>', cell_bold),
+        Paragraph('<b>Gross Wt<br/>(Tea)</b>', cell_bold),
+        Paragraph('<b>Net Wt<br/>(+Bag)</b>', cell_bold),
+        Paragraph('<b>HSN</b>', cell_bold)
+    ]
+    table_data = [headers]
+
+    tot_pkgs = 0
+    tot_gross = 0.0
+    tot_net = 0.0
+    grades_list = []
+
+    for idx, item in enumerate(items, 1):
+        pkgs = int(item['no_of_packages'] or 0)
+        unit_wt = float(item['unit_weight'] or 0.0)
+        gross_wt = float(item['gross_weight'] or 0.0)
+        net_wt = float(item['total_qty_kg'] or item['net_weight_kgs'] or 0.0)
+        grade = item['grade'] or ''
+        if grade and grade not in grades_list:
+            grades_list.append(grade)
+
+        tot_pkgs += pkgs
+        tot_gross += gross_wt
+        tot_net += net_wt
+
+        table_data.append([
+            Paragraph(str(item['sl_no'] or idx), cell_style),
+            Paragraph(grade, cell_style),
+            Paragraph(str(pkgs), cell_style),
+            Paragraph(str(item['batch_invoice_no'] or ''), cell_style),
+            Paragraph(str(item['serial_from'] or ''), cell_style),
+            Paragraph(str(item['serial_to'] or ''), cell_style),
+            Paragraph(f"{unit_wt:.2f}" if unit_wt else '', cell_style),
+            Paragraph(f"{gross_wt:.2f}", cell_style),
+            Paragraph(f"{net_wt:.2f}", cell_style),
+            Paragraph(str(item['hsn_code'] or ''), cell_style),
+        ])
+
+    # Total row
+    table_data.append([
+        Paragraph('<b>TOTAL:</b>', cell_bold),
+        '',
+        Paragraph(f'<b>{tot_pkgs}</b>', cell_bold),
+        '', '', '', '',
+        Paragraph(f'<b>{tot_gross:.2f}</b>', cell_bold),
+        Paragraph(f'<b>{tot_net:.2f}</b>', cell_bold),
+        ''
+    ])
+
+    items_table = Table(table_data, colWidths=[35, 60, 48, 80, 45, 45, 45, 67, 70, 60])
+    items_table.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#f8fafc')),
+        ('SPAN', (0,-1), (1,-1)),
+    ]))
+    elements.append(items_table)
+    elements.append(Spacer(1, 8))
+
+    # Statutory Declaration
+    dec_style = ParagraphStyle(
+        'DecStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=7.2,
+        leading=9.2,
+        alignment=4 # Justify
+    )
+    dec_text = (
+        '<b>DECLARATION:</b> The Teas in the above Invoices were made from Green Leaf which have only used PPFs as '
+        'recommended in Plant Protection Code and have not used any chemicals and pesticides banned in India. In the event '
+        'of detection of any banned pesticides or chemicals and their residues are beyond the prescribed limit Tea Board is '
+        'free to take appropriate action as per the provisions of the Tea Marketing (Control) Order, 2003.'
+    )
+    dec_table = Table([[Paragraph(dec_text, dec_style)]], colWidths=[555])
+    dec_table.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+    ]))
+    elements.append(dec_table)
+    elements.append(Spacer(1, 8))
+
+    # Manner of transport
+    manner_parts = []
+    if driver_name:
+        manner_parts.append(driver_name.upper())
+    if vehicle_no:
+        manner_parts.append(vehicle_no.upper())
+    manner_str = f"BY {', '.join(manner_parts)}" if manner_parts else "BY ________________________"
+
+    transport_data = [
+        [
+            Paragraph(f'<b>MANNER OF TRANSPORT:</b> {manner_str}', styles['Normal'])
+        ]
+    ]
+    trans_table = Table(transport_data, colWidths=[555])
+    trans_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('FONTSIZE', (0,0), (-1,-1), 9.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+    ]))
+    elements.append(trans_table)
+    elements.append(Spacer(1, 26))
+
+    # Signatures
+    sig_style_left = ParagraphStyle(
+        'SigLeft',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10.5,
+        leading=13,
+        textColor=colors.HexColor('#002B49'),
+        alignment=0
+    )
+    sig_style_right = ParagraphStyle(
+        'SigRight',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10.5,
+        leading=13,
+        textColor=colors.HexColor('#002B49'),
+        alignment=2
+    )
+    sig_data = [
+        [
+            Paragraph('<b>SIGNATURE OF THE DRIVER</b>', sig_style_left),
+            Paragraph('<b>SIGNATURE OF THE<br/>OWNER/ MANAGER</b>', sig_style_right)
+        ]
+    ]
+    sig_table = Table(sig_data, colWidths=[275, 280])
+    sig_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'BOTTOM'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0)
+    ]))
+    elements.append(sig_table)
+
+    doc.build(elements)
+    buffer.seek(0)
+    filename = f"Delivery_Challan_{ref_no.replace('/', '_').replace(' ', '_')}.pdf"
+
+    metadata = {
+        'group_id': group_id,
+        'ref_no': ref_no,
+        'gate_pass_no': gate_pass_no,
+        'date': date_str,
+        'time': time_str,
+        'consignee': consignee_name,
+        'consignee_address': consignee_addr,
+        'vehicle_no': vehicle_no,
+        'driver_name': driver_name,
+        'driver_no': driver_no,
+        'total_packages': tot_pkgs,
+        'total_qty': f"{tot_net:.2f}",
+        'grades': ", ".join(grades_list),
+        'pdf_filename': filename
+    }
+
+    return buffer, filename, metadata
+
+
+@app.route('/api/branch1/transfer/pdf/<group_id>')
+def download_branch1_challan_pdf(group_id):
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    buffer, filename, metadata = generate_challan_pdf(group_id)
+    if not buffer:
+        return jsonify({'success': False, 'message': 'Transfer record not found'}), 404
+
+    as_attachment = (request.args.get('download') == '1')
+    return send_file(
+        buffer,
+        mimetype='application/pdf',
+        as_attachment=as_attachment,
+        download_name=filename
+    )
+
+
+@app.route('/api/branch1/transfer/summary/<group_id>')
+def get_branch1_transfer_summary(group_id):
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    conn = get_db_connection()
+    items = conn.execute('SELECT * FROM branch1_transfers WHERE group_id = ? ORDER BY sl_no ASC, id ASC', (group_id,)).fetchall()
+    conn.close()
+
+    if not items:
+        return jsonify({'success': False, 'message': 'Transfer record not found'}), 404
+
+    first = items[0]
+    grades_list = []
+    tot_pkgs = 0
+    tot_net = 0.0
+
+    for item in items:
+        g = item['grade'] or ''
+        if g and g not in grades_list:
+            grades_list.append(g)
+        tot_pkgs += int(item['no_of_packages'] or 0)
+        tot_net += float(item['total_qty_kg'] or item['net_weight_kgs'] or 0.0)
+
+    default_wa = get_app_setting('whatsapp_phone', '')
+    dest_phone = first['driver_no'] or default_wa
+    gp = first['gate_pass_no'] or ''
+
+    summary = {
+        'success': True,
+        'group_id': group_id,
+        'ref_no': first['batch_invoice_no'] or 'CHALLAN',
+        'gate_pass_no': gp,
+        'date': first['entry_date'] or '',
+        'time': first['entry_time'] or '',
+        'consignee': first['destination_name'] or 'SELF',
+        'vehicle_no': first['vehicle_no'] or 'N/A',
+        'driver_name': first['driver_name'] or 'N/A',
+        'driver_no': first['driver_no'] or '',
+        'suggested_phone': dest_phone,
+        'total_packages': tot_pkgs,
+        'total_qty': f"{tot_net:.2f}",
+        'grades': ", ".join(grades_list),
+        'pdf_url': f"/api/branch1/transfer/pdf/{group_id}?download=1"
+    }
+
+    # WhatsApp formatted message
+    gp_line = f"🎫 *Gate Pass No:* {gp}\n" if gp else ""
+    summary['whatsapp_text'] = (
+        f"🍵 *Kokkalatty Tea Industry - Delivery Challan*\n"
+        f"{gp_line}"
+        f"📄 *Ref / Challan No:* {summary['ref_no']}\n"
+        f"📅 *Date:* {summary['date']} {summary['time']}\n"
+        f"🏢 *Consignee:* {summary['consignee']}\n"
+        f"🚚 *Vehicle No:* {summary['vehicle_no']}\n"
+        f"👤 *Driver:* {summary['driver_name']}" + (f" ({summary['driver_no']})" if summary['driver_no'] else "") + "\n"
+        f"📦 *Total Packages:* {summary['total_packages']} Bags\n"
+        f"⚖️ *Total Net Qty:* {summary['total_qty']} KG\n"
+        f"🏷️ *Grades:* {summary['grades']}\n"
+        f"📎 *Official Challan PDF Attached*"
+    )
+
+    return jsonify(summary)
+
+
+# --- EMAIL SETTINGS MANAGEMENT ---
+
+@app.route('/api/settings/email', methods=['GET', 'POST'])
+def manage_email_settings():
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    if request.method == 'POST':
+        data = request.json or {}
+        if 'sender_email' in data:
+            set_app_setting('sender_email', data['sender_email'].strip())
+        if 'sender_password' in data and data['sender_password'].strip():
+            set_app_setting('sender_password', data['sender_password'].strip())
+        if 'receiver_email' in data:
+            set_app_setting('receiver_email', data['receiver_email'].strip())
+        if 'smtp_host' in data:
+            set_app_setting('smtp_host', data['smtp_host'].strip())
+        if 'smtp_port' in data:
+            set_app_setting('smtp_port', str(data['smtp_port']).strip())
+        if 'whatsapp_phone' in data:
+            set_app_setting('whatsapp_phone', data['whatsapp_phone'].strip())
+        return jsonify({'success': True, 'message': 'Email & WhatsApp settings saved successfully!'})
+
+    current_pw = get_app_setting('sender_password', '')
+    return jsonify({
+        'sender_email': get_app_setting('sender_email', 'maplepro2323@gmail.com'),
+        'has_password': bool(current_pw),
+        'receiver_email': get_app_setting('receiver_email', '24bcs228@kgcas.com'),
+        'smtp_host': get_app_setting('smtp_host', 'smtp.gmail.com'),
+        'smtp_port': get_app_setting('smtp_port', '587'),
+        'whatsapp_phone': get_app_setting('whatsapp_phone', '')
+    })
+
+
+@app.route('/api/settings/test_email', methods=['POST'])
+def test_email_route():
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    data = request.json or {}
+    # If custom values submitted with test, update or use them
+    if data.get('sender_email'):
+        set_app_setting('sender_email', data['sender_email'].strip())
+    if data.get('sender_password'):
+        set_app_setting('sender_password', data['sender_password'].strip())
+    if data.get('receiver_email'):
+        set_app_setting('receiver_email', data['receiver_email'].strip())
+
+    now_str = datetime.datetime.now().strftime('%d/%m/%Y %I:%M %p')
+    test_subject = f"Test Email - Kokkalatty Transfers Manager ({now_str})"
+    test_body = (
+        f"This is a verification email from Kokkalatty Transfers Manager.\n\n"
+        f"Timestamp: {now_str}\n"
+        f"Configured Sender: {get_app_setting('sender_email')}\n"
+        f"Configured Receiver: {get_app_setting('receiver_email')}\n\n"
+        f"If you received this message, your SMTP credentials and daily report mailer are working correctly!"
+    )
+
+    success, message = send_email_via_smtp(test_subject, test_body)
+    return jsonify({'success': success, 'message': message})
 
 
 @app.route('/settings')
@@ -867,105 +1391,211 @@ def create_report_pdf(summary_text):
     pdf.output(filename)
     return filename
 
+def send_email_via_smtp(subject, body_text, attachment_path=None):
+    sender = get_app_setting('sender_email', 'maplepro2323@gmail.com').strip()
+    raw_password = get_app_setting('sender_password', '').strip()
+    password = raw_password.replace(" ", "")
+    receiver = get_app_setting('receiver_email', '24bcs228@kgcas.com').strip()
+    smtp_host = get_app_setting('smtp_host', 'smtp.gmail.com').strip()
+    smtp_port_str = get_app_setting('smtp_port', '587').strip()
+    try:
+        smtp_port = int(smtp_port_str)
+    except:
+        smtp_port = 587
+
+    if not sender or not password or not receiver:
+        return False, "Email sender, password, or recipient not configured. Please open Settings to configure."
+
+    msg = MIMEMultipart()
+    msg["Subject"] = subject
+    msg["From"] = f"Kokkalatty Transfer Software <{sender}>"
+    msg["To"] = receiver
+    msg.attach(MIMEText(body_text, "plain"))
+
+    if attachment_path and os.path.exists(attachment_path):
+        try:
+            with open(attachment_path, "rb") as f:
+                part = MIMEApplication(f.read(), _subtype="pdf")
+                part.add_header("Content-Disposition", "attachment", filename=os.path.basename(attachment_path))
+                msg.attach(part)
+        except Exception as ex:
+            print(f"Attachment error: {ex}")
+
+    try:
+        if smtp_port == 465:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12)
+            server.login(sender, password)
+            server.send_message(msg)
+            server.quit()
+        else:
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=12)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(sender, password)
+            server.send_message(msg)
+            server.quit()
+        return True, f"Email sent successfully to {receiver}!"
+    except smtplib.SMTPAuthenticationError as auth_err:
+        err_str = str(auth_err)
+        if '534' in err_str or 'WebLoginRequired' in err_str:
+            return False, "Google Authentication Error (534): Google requires a valid App Password. Please generate a new 16-character App Password at https://myaccount.google.com/apppasswords and save it in Settings."
+        return False, f"Email Authentication Failed: Username or App Password incorrect. ({err_str})"
+    except smtplib.SMTPResponseException as resp_err:
+        if resp_err.smtp_code == 534:
+            return False, "Google Authentication Error (534): Google requires a valid App Password. Please generate a new 16-character App Password at https://myaccount.google.com/apppasswords and save it in Settings."
+        return False, f"Mail Server Error ({resp_err.smtp_code}): {resp_err.smtp_error}"
+    except smtplib.SMTPServerDisconnected:
+        return False, "Mail server disconnected unexpectedly. This usually happens when Gmail rejects the app password or port is blocked. Please check your App Password in Settings."
+    except Exception as e:
+        return False, f"Failed to send email: {str(e)}"
+
+
 @app.route('/send_daily_report')
 def send_daily_report():
     if 'username' not in session:
-        return redirect(url_for('index'))
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
 
     conn = get_db_connection()
     today_str = datetime.datetime.now().strftime('%d/%m/%Y')
-    
-    # Fetch Data
-    sent_invoices = conn.execute("SELECT * FROM invoices WHERE date = ? AND invoice_no LIKE 'TRF-%'", (today_str,)).fetchall()
-    received_invoices = conn.execute("SELECT * FROM invoices WHERE received_date = ?", (today_str,)).fetchall()
-    dispatched_invoices = conn.execute("SELECT * FROM invoices WHERE date = ? AND invoice_no LIKE 'DIS-%'", (today_str,)).fetchall()
-    
-    summary_data = conn.execute('''
-        SELECT 
-            t.grade,
-            SUM(CASE WHEN i.received_date = ? THEN t.received_packages ELSE 0 END) as bags_count,
-            SUM(CASE WHEN i.received_date = ? THEN t.received_packages * t.nett_wt ELSE 0 END) as bags_weight,
-            SUM(CASE WHEN i.invoice_no LIKE 'DIS-%' AND i.date = ? THEN t.received_packets ELSE 0 END) as pkts_count,
-            SUM(CASE WHEN i.invoice_no LIKE 'DIS-%' AND i.date = ? THEN t.received_packets * t.nett_wt ELSE 0 END) as pkts_weight
-        FROM transfer_items t
-        JOIN invoices i ON t.invoice_id = i.id
-        WHERE (i.date = ? OR i.received_date = ?)
-        GROUP BY t.grade
-        HAVING bags_count > 0 OR pkts_count > 0
-    ''', (today_str, today_str, today_str, today_str, today_str, today_str)).fetchall()
-    conn.close()
-
-    # Generate Text Summary
     date_display = datetime.datetime.now().strftime("%d %B %Y")
-    summary = f"FACTORY TRANSFER - DAILY ACTIVITY REPORT ({date_display})\n"
-    summary += "="*70 + "\n\n"
+    username = session.get('username')
 
-    summary += f"1. INVOICES SENT TODAY:\n" + "-"*35 + "\n"
-    if sent_invoices:
-        for inv in sent_invoices:
-            summary += f"• Inv: {inv['invoice_no']} | Status: {inv['status']} | Bags: {inv['total_packages']} | Qty: {inv['total_qty']} KG\n"
-    else:
-        summary += "No invoices sent today.\n"
-    summary += "\n"
+    if username == 'branch1':
+        # Branch 1 Daily Report
+        transfers = conn.execute('''
+            SELECT group_id, entry_date, entry_time,
+                   MIN(batch_invoice_no) as ref_no,
+                   MIN(destination_name) as dest_name,
+                   MIN(vehicle_no) as vehicle_no,
+                   MIN(driver_name) as driver_name,
+                   COUNT(*) as item_count,
+                   SUM(no_of_packages) as total_packages,
+                   SUM(total_qty_kg) as grand_total_qty,
+                   GROUP_CONCAT(DISTINCT grade) as grades
+            FROM branch1_transfers
+            WHERE entry_date = ?
+            GROUP BY group_id
+            ORDER BY id DESC
+        ''', (today_str,)).fetchall()
 
-    summary += f"2. INVOICES RECEIVED TODAY:\n" + "-"*35 + "\n"
-    if received_invoices:
-        for inv in received_invoices:
-            summary += f"• Inv: {inv['invoice_no']} | From: {inv['user']} | Bags Rec: {inv['total_received_bags']}\n"
-    else:
-        summary += "No invoices received today.\n"
-    summary += "\n"
+        productions = conn.execute('''
+            SELECT * FROM branch1_production WHERE date = ? ORDER BY id DESC
+        ''', (today_str,)).fetchall()
 
-    summary += f"3. DISPATCHES TODAY (PACKETS):\n" + "-"*35 + "\n"
-    if dispatched_invoices:
-        for inv in dispatched_invoices:
-            summary += f"• Inv: {inv['invoice_no']} | Items: {inv['total_items']} | Qty: {inv['total_qty']} KG\n"
-    else:
-        summary += "No packet dispatches today.\n"
-    summary += "\n"
+        grade_summary = conn.execute('''
+            SELECT grade,
+                   SUM(no_of_packages) as total_pkgs,
+                   SUM(total_qty_kg) as total_wt
+            FROM branch1_transfers
+            WHERE entry_date = ?
+            GROUP BY grade
+        ''', (today_str,)).fetchall()
 
-    summary += "4. GRADE-WISE ACTIVITY SUMMARY:\n" + "-"*40 + "\n"
-    summary += f"{'Grade':<15} | {'Bags Rec. [kgs]':<20} | {'Pkts Disp. [no][kgs]':<25}\n"
-    summary += "-"*65 + "\n"
-    if summary_data:
-        for g in summary_data:
-            bags_rec = f"{g['bags_count']} [{g['bags_weight']:.2f}kg]"
-            pkts_disp = f"{g['pkts_count']} [{g['pkts_weight']:.2f}kg]"
-            summary += f"{g['grade']:<15} | {bags_rec:<20} | {pkts_disp:<25}\n"
-    else:
-        summary += "No summarized activity recorded today.\n"
-    
-    summary += "\n" + "="*70 + "\n"
-    summary += "END OF DAILY ACTIVITY REPORT\n"
+        conn.close()
 
-    # Email Logic
-    sender = "maplepro2323@gmail.com"
-    password = "vkah llvc mduj yfze"
-    receiver = "24bcs228@kgcas.com"
+        # Generate Text Summary
+        summary = f"KOKKALATTY TEA INDUSTRY - BRANCH 1 DAILY REPORT\n"
+        summary += f"Date: {date_display}\n"
+        summary += "=" * 70 + "\n\n"
 
-    msg = MIMEMultipart()
-    msg["Subject"] = f"Daily Factory Transfer Report - {today_str}"
-    msg["From"] = f"Transfer Software <{sender}>"
-    msg["To"] = receiver
-    msg.attach(MIMEText(summary, "plain"))
+        summary += f"1. TRANSFERS DISPATCHED TODAY ({today_str}):\n" + "-" * 45 + "\n"
+        if transfers:
+            for t in transfers:
+                summary += f"• Ref: {t['ref_no']} | To: {t['dest_name'] or 'SELF'} | Veh: {t['vehicle_no'] or 'N/A'} | Driver: {t['driver_name'] or 'N/A'}\n"
+                summary += f"  Packages: {t['total_packages']} Bags | Qty: {t['grand_total_qty']} KG | Grades: {t['grades']}\n\n"
+        else:
+            summary += "No transfers recorded today.\n\n"
 
-    try:
+        summary += f"2. PRODUCTION LOGGED TODAY ({today_str}):\n" + "-" * 45 + "\n"
+        if productions:
+            for p in productions:
+                summary += f"• Batch: {p['batch_no'] or 'N/A'} | Grade: {p['grade']} | Produced: {p['qty_produced']} {p['uom'] or 'KG'} | Packages: {p['no_of_packages'] or 0}\n"
+            summary += "\n"
+        else:
+            summary += "No production recorded today.\n\n"
+
+        summary += f"3. DISPATCH GRADE-WISE SUMMARY:\n" + "-" * 45 + "\n"
+        summary += f"{'Grade':<15} | {'Packages (Bags)':<18} | {'Weight (KG)':<15}\n"
+        summary += "-" * 55 + "\n"
+        if grade_summary:
+            for g in grade_summary:
+                summary += f"{g['grade']:<15} | {g['total_pkgs']:<18} | {g['total_wt']:<15.2f}\n"
+        else:
+            summary += "No grade dispatch recorded today.\n"
+
+        summary += "\n" + "=" * 70 + "\n"
+        summary += "END OF BRANCH 1 DAILY REPORT\n"
+
         pdf_file = create_report_pdf(summary)
-        if pdf_file and os.path.exists(pdf_file):
-            with open(pdf_file, "rb") as f:
-                part = MIMEApplication(f.read(), _subtype="pdf")
-                part.add_header("Content-Disposition", "attachment", filename=os.path.basename(pdf_file))
-                msg.attach(part)
-    except Exception as e:
-        print(f"PDF Error: {e}")
+        success, message = send_email_via_smtp(f"Kokkalatty Branch 1 Daily Report - {today_str}", summary, pdf_file)
+        return jsonify({"status": "success" if success else "error", "message": message})
 
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(sender, password)
-            server.send_message(msg)
-        return jsonify({"status": "success", "message": "Email sent successfully!"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to send email: {str(e)}"})
+    else:
+        # Branch 2 / Default Report
+        sent_invoices = conn.execute("SELECT * FROM invoices WHERE date = ? AND invoice_no LIKE 'TRF-%'", (today_str,)).fetchall()
+        received_invoices = conn.execute("SELECT * FROM invoices WHERE received_date = ?", (today_str,)).fetchall()
+        dispatched_invoices = conn.execute("SELECT * FROM invoices WHERE date = ? AND invoice_no LIKE 'DIS-%'", (today_str,)).fetchall()
+
+        summary_data = conn.execute('''
+            SELECT 
+                t.grade,
+                SUM(CASE WHEN i.received_date = ? THEN t.received_packages ELSE 0 END) as bags_count,
+                SUM(CASE WHEN i.received_date = ? THEN t.received_packages * t.nett_wt ELSE 0 END) as bags_weight,
+                SUM(CASE WHEN i.invoice_no LIKE 'DIS-%' AND i.date = ? THEN t.received_packets ELSE 0 END) as pkts_count,
+                SUM(CASE WHEN i.invoice_no LIKE 'DIS-%' AND i.date = ? THEN t.received_packets * t.nett_wt ELSE 0 END) as pkts_weight
+            FROM transfer_items t
+            JOIN invoices i ON t.invoice_id = i.id
+            WHERE (i.date = ? OR i.received_date = ?)
+            GROUP BY t.grade
+            HAVING bags_count > 0 OR pkts_count > 0
+        ''', (today_str, today_str, today_str, today_str, today_str, today_str)).fetchall()
+        conn.close()
+
+        summary = f"FACTORY TRANSFER - DAILY ACTIVITY REPORT ({date_display})\n"
+        summary += "="*70 + "\n\n"
+
+        summary += f"1. INVOICES SENT TODAY:\n" + "-"*35 + "\n"
+        if sent_invoices:
+            for inv in sent_invoices:
+                summary += f"• Inv: {inv['invoice_no']} | Status: {inv['status']} | Bags: {inv['total_packages']} | Qty: {inv['total_qty']} KG\n"
+        else:
+            summary += "No invoices sent today.\n"
+        summary += "\n"
+
+        summary += f"2. INVOICES RECEIVED TODAY:\n" + "-"*35 + "\n"
+        if received_invoices:
+            for inv in received_invoices:
+                summary += f"• Inv: {inv['invoice_no']} | From: {inv['user']} | Bags Rec: {inv['total_received_bags']}\n"
+        else:
+            summary += "No invoices received today.\n"
+        summary += "\n"
+
+        summary += f"3. DISPATCHES TODAY (PACKETS):\n" + "-"*35 + "\n"
+        if dispatched_invoices:
+            for inv in dispatched_invoices:
+                summary += f"• Inv: {inv['invoice_no']} | Items: {inv['total_items']} | Qty: {inv['total_qty']} KG\n"
+        else:
+            summary += "No packet dispatches today.\n"
+        summary += "\n"
+
+        summary += "4. GRADE-WISE ACTIVITY SUMMARY:\n" + "-"*40 + "\n"
+        summary += f"{'Grade':<15} | {'Bags Rec. [kgs]':<20} | {'Pkts Disp. [no][kgs]':<25}\n"
+        summary += "-"*65 + "\n"
+        if summary_data:
+            for g in summary_data:
+                bags_rec = f"{g['bags_count']} [{g['bags_weight']:.2f}kg]"
+                pkts_disp = f"{g['pkts_count']} [{g['pkts_weight']:.2f}kg]"
+                summary += f"{g['grade']:<15} | {bags_rec:<20} | {pkts_disp:<25}\n"
+        else:
+            summary += "No summarized activity recorded today.\n"
+        
+        summary += "\n" + "="*70 + "\n"
+        summary += "END OF DAILY ACTIVITY REPORT\n"
+
+        pdf_file = create_report_pdf(summary)
+        success, message = send_email_via_smtp(f"Daily Factory Transfer Report - {today_str}", summary, pdf_file)
+        return jsonify({"status": "success" if success else "error", "message": message})
 
 @app.route('/api/invoice/delete/<int:invoice_id>', methods=['DELETE'])
 def delete_invoice(invoice_id):
